@@ -1,47 +1,37 @@
-import { createContext, useContext, useReducer, useRef } from 'react';
+import { createContext, useContext, useReducer, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { ProjectData, GuideStep, FunctionExplanation, Language, EditorAction, ChatMessage, FSNode, FileNode, FolderNode } from '../types';
+import type { Project, AnalysisHistory, CodeSnapshot, GuideStep, ChatMessage, EditorAction, FSNode, FileNode, FolderNode, Language } from '../types';
 import { Stack, Queue, LinkedList, HashMap } from '../dataStructures';
-import { generateGuide as apiGenerateGuide, analyzeCode as apiAnalyzeCode, sendChatMessage as apiSendChatMessage } from '../services/api';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function uid() { return `id_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; }
-
-function detectLanguage(name: string): Language {
-  if (name.endsWith('.py')) return 'python';
-  if (name.endsWith('.java')) return 'java';
-  if (name.endsWith('.cpp') || name.endsWith('.cc') || name.endsWith('.h')) return 'cpp';
-  return 'javascript';
-}
+import { analyzeCode as apiAnalyzeCode, generateGuide as apiGenerateGuide, saveSnapshot as apiSaveSnapshot, getLatestSnapshot, getRecentAnalysis } from '../services/api';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 interface AppState {
-  currentProject: ProjectData | null;
+  currentProject: Project | null;
   code: string;
-  language: Language;
   guideSteps: GuideStep[];
-  explanations: FunctionExplanation[];
-  suggestions: string[];
+  recentAnalysis: AnalysisHistory[];
+  snapshots: CodeSnapshot[];
   isAnalyzing: boolean;
   isGeneratingGuide: boolean;
+  isSaving: boolean;
   chatMessages: ChatMessage[];
   isChatLoading: boolean;
-  // Virtual file system
   fsNodes: FSNode[];
   activeFileId: string | null;
 }
 
-// ─── Actions ──────────────────────────────────────────────────────────────────
 type Action =
+  | { type: 'SET_PROJECT'; payload: Project }
   | { type: 'SET_CODE'; payload: string }
-  | { type: 'SET_LANGUAGE'; payload: Language }
   | { type: 'SET_GUIDE_STEPS'; payload: GuideStep[] }
-  | { type: 'SET_PROJECT_TITLE'; payload: string }
   | { type: 'TOGGLE_STEP'; payload: string }
-  | { type: 'SET_ANALYSIS'; payload: { explanations: FunctionExplanation[]; suggestions: string[] } }
-  | { type: 'DISMISS_SUGGESTION'; payload: number }
+  | { type: 'SET_RECENT_ANALYSIS'; payload: AnalysisHistory[] }
+  | { type: 'ADD_ANALYSIS'; payload: AnalysisHistory }
+  | { type: 'SET_SNAPSHOTS'; payload: CodeSnapshot[] }
+  | { type: 'ADD_SNAPSHOT'; payload: CodeSnapshot }
   | { type: 'SET_ANALYZING'; payload: boolean }
   | { type: 'SET_GENERATING_GUIDE'; payload: boolean }
+  | { type: 'SET_SAVING'; payload: boolean }
   | { type: 'ADD_CHAT_MESSAGE'; payload: ChatMessage }
   | { type: 'SET_CHAT_LOADING'; payload: boolean }
   | { type: 'FS_ADD_NODE'; payload: FSNode }
@@ -50,18 +40,17 @@ type Action =
   | { type: 'FS_RENAME_NODE'; payload: { id: string; name: string } }
   | { type: 'FS_TOGGLE_FOLDER'; payload: string }
   | { type: 'FS_SET_ACTIVE'; payload: string }
-  | { type: 'FS_UPDATE_FILE_CONTENT'; payload: { id: string; content: string } }
-  | { type: 'NEW_PROJECT' };
+  | { type: 'RESET' };
 
 const initialState: AppState = {
   currentProject: null,
   code: '',
-  language: 'javascript',
   guideSteps: [],
-  explanations: [],
-  suggestions: [],
+  recentAnalysis: [],
+  snapshots: [],
   isAnalyzing: false,
   isGeneratingGuide: false,
+  isSaving: false,
   chatMessages: [],
   isChatLoading: false,
   fsNodes: [],
@@ -85,34 +74,32 @@ function deleteNodeAndChildren(nodes: FSNode[], id: string): FSNode[] {
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
+    case 'SET_PROJECT':
+      return { ...initialState, currentProject: action.payload };
     case 'SET_CODE': {
-      // Also sync content into the active file node
       const updated = state.activeFileId
         ? state.fsNodes.map((n) => n.id === state.activeFileId && n.type === 'file' ? { ...n, content: action.payload } : n)
         : state.fsNodes;
       return { ...state, code: action.payload, fsNodes: updated };
     }
-    case 'SET_LANGUAGE':
-      return { ...state, language: action.payload };
     case 'SET_GUIDE_STEPS':
       return { ...state, guideSteps: action.payload };
-    case 'SET_PROJECT_TITLE':
-      return {
-        ...state,
-        currentProject: state.currentProject
-          ? { ...state.currentProject, name: action.payload }
-          : { name: action.payload, description: '', language: state.language, code: state.code, guideSteps: state.guideSteps },
-      };
     case 'TOGGLE_STEP':
       return { ...state, guideSteps: state.guideSteps.map((s) => s.id === action.payload ? { ...s, completed: !s.completed } : s) };
-    case 'SET_ANALYSIS':
-      return { ...state, explanations: action.payload.explanations, suggestions: action.payload.suggestions };
-    case 'DISMISS_SUGGESTION':
-      return { ...state, suggestions: state.suggestions.filter((_, i) => i !== action.payload) };
+    case 'SET_RECENT_ANALYSIS':
+      return { ...state, recentAnalysis: action.payload };
+    case 'ADD_ANALYSIS':
+      return { ...state, recentAnalysis: [action.payload, ...state.recentAnalysis].slice(0, 5) };
+    case 'SET_SNAPSHOTS':
+      return { ...state, snapshots: action.payload };
+    case 'ADD_SNAPSHOT':
+      return { ...state, snapshots: [action.payload, ...state.snapshots] };
     case 'SET_ANALYZING':
       return { ...state, isAnalyzing: action.payload };
     case 'SET_GENERATING_GUIDE':
       return { ...state, isGeneratingGuide: action.payload };
+    case 'SET_SAVING':
+      return { ...state, isSaving: action.payload };
     case 'ADD_CHAT_MESSAGE':
       return { ...state, chatMessages: [...state.chatMessages, action.payload] };
     case 'SET_CHAT_LOADING':
@@ -121,18 +108,12 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, fsNodes: [...state.fsNodes, action.payload] };
     case 'FS_IMPORT_FILE': {
       const node = action.payload;
-      return {
-        ...state,
-        fsNodes: [...state.fsNodes, node],
-        activeFileId: node.id,
-        code: node.content,
-        language: node.language,
-      };
+      return { ...state, fsNodes: [...state.fsNodes, node], activeFileId: node.id, code: node.content };
     }
     case 'FS_DELETE_NODE': {
       const remaining = deleteNodeAndChildren(state.fsNodes, action.payload);
-      const activeStillExists = remaining.some((n) => n.id === state.activeFileId);
-      return { ...state, fsNodes: remaining, activeFileId: activeStillExists ? state.activeFileId : null, code: activeStillExists ? state.code : '' };
+      const stillActive = remaining.some((n) => n.id === state.activeFileId);
+      return { ...state, fsNodes: remaining, activeFileId: stillActive ? state.activeFileId : null, code: stillActive ? state.code : '' };
     }
     case 'FS_RENAME_NODE':
       return { ...state, fsNodes: state.fsNodes.map((n) => n.id === action.payload.id ? { ...n, name: action.payload.name } : n) };
@@ -141,31 +122,25 @@ function reducer(state: AppState, action: Action): AppState {
     case 'FS_SET_ACTIVE': {
       const file = state.fsNodes.find((n) => n.id === action.payload && n.type === 'file') as FileNode | undefined;
       if (!file) return state;
-      return { ...state, activeFileId: action.payload, code: file.content, language: file.language };
+      return { ...state, activeFileId: action.payload, code: file.content };
     }
-    case 'FS_UPDATE_FILE_CONTENT':
-      return { ...state, fsNodes: state.fsNodes.map((n) => n.id === action.payload.id && n.type === 'file' ? { ...n, content: action.payload.content } : n) };
-    case 'NEW_PROJECT':
+    case 'RESET':
       return { ...initialState };
     default:
       return state;
   }
 }
 
-// ─── Context ──────────────────────────────────────────────────────────────────
+// ─── Context value ────────────────────────────────────────────────────────────
 interface AppContextValue {
   state: AppState;
+  loadProject: (project: Project) => Promise<void>;
   setCode: (code: string) => void;
-  setLanguage: (lang: Language) => void;
-  generateGuide: (description: string) => Promise<void>;
-  triggerAnalysis: (code: string) => Promise<void>;
+  triggerAnalysis: () => Promise<void>;
+  generateGuide: () => Promise<void>;
+  saveVersion: (label?: string) => Promise<void>;
   toggleStepComplete: (stepId: string) => void;
-  dismissSuggestion: (index: number) => void;
-  saveSnapshot: () => void;
-  undoLastAction: () => void;
-  newProject: () => void;
   sendChatMessage: (message: string) => Promise<void>;
-  // File system actions
   createFile: (name: string, parentId: string | null) => void;
   createFolder: (name: string, parentId: string | null) => void;
   deleteNode: (id: string) => void;
@@ -174,133 +149,166 @@ interface AppContextValue {
   openFile: (id: string) => void;
   importFile: (node: FileNode) => void;
   importFolder: (node: FolderNode) => void;
-  explanationMap: HashMap<string, FunctionExplanation>;
+  reset: () => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
+function uid() { return `id_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; }
+function detectLanguage(name: string): Language {
+  if (name.endsWith('.py')) return 'python';
+  if (name.endsWith('.java')) return 'java';
+  if (name.endsWith('.cpp') || name.endsWith('.cc') || name.endsWith('.h')) return 'cpp';
+  if (name.endsWith('.ts') || name.endsWith('.tsx')) return 'typescript';
+  return 'javascript';
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const analysisQueue = useRef(new Queue<string>());
   const codeHistory = useRef(new LinkedList<string>());
   const actionStack = useRef(new Stack<EditorAction>());
-  const explanationMap = useRef(new HashMap<string, FunctionExplanation>());
+  const explanationMap = useRef(new HashMap<string, string>());
   const isProcessingQueue = useRef(false);
 
-  const setCode = (code: string) => dispatch({ type: 'SET_CODE', payload: code });
-  const setLanguage = (lang: Language) => dispatch({ type: 'SET_LANGUAGE', payload: lang });
+  const loadProject = useCallback(async (project: Project) => {
+    dispatch({ type: 'SET_PROJECT', payload: project });
+    codeHistory.current = new LinkedList<string>();
+    actionStack.current = new Stack<EditorAction>();
+    explanationMap.current = new HashMap<string, string>();
 
-  const generateGuide = async (description: string) => {
-    dispatch({ type: 'SET_GENERATING_GUIDE', payload: true });
+    // Load latest snapshot
     try {
-      const response = await apiGenerateGuide(description, state.language);
-      dispatch({ type: 'SET_GUIDE_STEPS', payload: response.steps });
-      dispatch({ type: 'SET_PROJECT_TITLE', payload: response.projectTitle });
-    } finally {
-      dispatch({ type: 'SET_GENERATING_GUIDE', payload: false });
-    }
-  };
+      const snapshot = await getLatestSnapshot(project.id);
+      dispatch({ type: 'SET_CODE', payload: snapshot.content });
+    } catch { /* no snapshot yet */ }
 
-  const processAnalysisQueue = async (language: Language, description: string) => {
+    // Load recent analysis
+    try {
+      const recent = await getRecentAnalysis(project.id);
+      dispatch({ type: 'SET_RECENT_ANALYSIS', payload: recent });
+    } catch { /* ignore */ }
+  }, []);
+
+  const setCode = (code: string) => dispatch({ type: 'SET_CODE', payload: code });
+
+  const triggerAnalysis = useCallback(async () => {
+    const { currentProject, code } = stateRef.current;
+    if (!currentProject || !code.trim()) return;
+
+    analysisQueue.current.enqueue(code);
     if (isProcessingQueue.current) return;
+
     isProcessingQueue.current = true;
     dispatch({ type: 'SET_ANALYZING', payload: true });
+
     while (!analysisQueue.current.isEmpty()) {
-      const code = analysisQueue.current.dequeue();
-      if (code !== undefined) {
+      const snap = analysisQueue.current.dequeue();
+      if (snap !== undefined) {
         try {
-          const result = await apiAnalyzeCode(code, language, description);
-          explanationMap.current.clear();
-          result.explanations.forEach((exp) => explanationMap.current.set(exp.functionName, exp));
-          dispatch({ type: 'SET_ANALYSIS', payload: { explanations: result.explanations, suggestions: result.suggestions } });
+          const result = await apiAnalyzeCode({
+            code: snap,
+            language: currentProject.programmingLanguage,
+            projectId: currentProject.id,
+          });
+          dispatch({ type: 'ADD_ANALYSIS', payload: result });
+          codeHistory.current.append(snap);
         } catch { /* ignore */ }
       }
     }
+
     isProcessingQueue.current = false;
     dispatch({ type: 'SET_ANALYZING', payload: false });
-  };
+  }, []);
 
-  const triggerAnalysis = async (code: string) => {
-    analysisQueue.current.enqueue(code);
-    await processAnalysisQueue(state.language, state.currentProject?.description ?? '');
-  };
+  const generateGuide = useCallback(async () => {
+    const { currentProject } = stateRef.current;
+    if (!currentProject?.description) return;
+    dispatch({ type: 'SET_GENERATING_GUIDE', payload: true });
+    try {
+      const raw = await apiGenerateGuide(currentProject.description);
+      // Parse numbered list from plain text response
+      const lines = raw.split('\n').filter((l) => l.trim());
+      const steps: GuideStep[] = lines.map((line, i) => ({
+        id: `step_${i}`,
+        stepNumber: i + 1,
+        title: line.replace(/^\d+[\.\)]\s*/, '').trim(),
+        description: '',
+        completed: false,
+      }));
+      dispatch({ type: 'SET_GUIDE_STEPS', payload: steps });
+    } finally {
+      dispatch({ type: 'SET_GENERATING_GUIDE', payload: false });
+    }
+  }, []);
+
+  const saveVersion = useCallback(async (label?: string) => {
+    const { currentProject, code } = stateRef.current;
+    if (!currentProject || !code.trim()) return;
+    dispatch({ type: 'SET_SAVING', payload: true });
+    try {
+      const snapshot = await apiSaveSnapshot({ content: code, versionLabel: label, projectId: currentProject.id });
+      dispatch({ type: 'ADD_SNAPSHOT', payload: snapshot });
+    } finally {
+      dispatch({ type: 'SET_SAVING', payload: false });
+    }
+  }, []);
 
   const toggleStepComplete = (stepId: string) => {
     actionStack.current.push({ type: 'STEP_TOGGLE', payload: stepId, timestamp: Date.now() });
     dispatch({ type: 'TOGGLE_STEP', payload: stepId });
   };
 
-  const dismissSuggestion = (index: number) => {
-    actionStack.current.push({ type: 'SUGGESTION_DISMISS', payload: index, timestamp: Date.now() });
-    dispatch({ type: 'DISMISS_SUGGESTION', payload: index });
-  };
-
-  const saveSnapshot = () => { codeHistory.current.append(state.code); };
-
-  const undoLastAction = () => {
-    const last = actionStack.current.pop();
-    if (last?.type === 'STEP_TOGGLE') dispatch({ type: 'TOGGLE_STEP', payload: last.payload as string });
-  };
-
-  const newProject = () => {
-    codeHistory.current = new LinkedList<string>();
-    actionStack.current = new Stack<EditorAction>();
-    explanationMap.current = new HashMap<string, FunctionExplanation>();
-    analysisQueue.current = new Queue<string>();
-    dispatch({ type: 'NEW_PROJECT' });
-  };
-
-  const sendChatMessage = async (message: string) => {
-    const userMsg: ChatMessage = { id: `msg_${Date.now()}`, role: 'user', content: message, timestamp: Date.now() };
+  const sendChatMessage = useCallback(async (message: string) => {
+    const userMsg: ChatMessage = { id: uid(), role: 'user', content: message, timestamp: Date.now() };
     dispatch({ type: 'ADD_CHAT_MESSAGE', payload: userMsg });
     dispatch({ type: 'SET_CHAT_LOADING', payload: true });
-    try {
-      const reply = await apiSendChatMessage(message, state.code, state.language);
-      const assistantMsg: ChatMessage = { id: `msg_${Date.now() + 1}`, role: 'assistant', content: reply, timestamp: Date.now() };
-      dispatch({ type: 'ADD_CHAT_MESSAGE', payload: assistantMsg });
-    } finally {
-      dispatch({ type: 'SET_CHAT_LOADING', payload: false });
-    }
-  };
+    // Chat is mock until backend provides endpoint
+    await new Promise((r) => setTimeout(r, 900 + Math.random() * 600));
+    const { code, currentProject } = stateRef.current;
+    const lang = currentProject?.programmingLanguage ?? 'code';
+    const replies = [
+      `Looking at your ${lang} code — you're on the right track. Keep going!`,
+      `Good question. In ${lang}, this pattern is common. Consider also handling edge cases.`,
+      `The logic looks solid. Think about what happens with unexpected input.`,
+      `Nice structure. You could make this more reusable by extracting it into a helper function.`,
+    ];
+    const reply = code.trim()
+      ? replies[Math.floor(Math.random() * replies.length)]
+      : `Start writing some ${lang} code and I'll help you understand it as you go.`;
+    dispatch({ type: 'ADD_CHAT_MESSAGE', payload: { id: uid(), role: 'assistant', content: reply, timestamp: Date.now() } });
+    dispatch({ type: 'SET_CHAT_LOADING', payload: false });
+  }, []);
 
-  // ─── File system actions ───────────────────────────────────────────────────
+  // ─── File system ────────────────────────────────────────────────────────────
   const createFile = (name: string, parentId: string | null) => {
     const lang = detectLanguage(name);
     const node: FileNode = { id: uid(), type: 'file', name, content: '', language: lang, parentId };
-    dispatch({ type: 'FS_ADD_NODE', payload: node });
-    dispatch({ type: 'FS_SET_ACTIVE', payload: node.id });
-    // Immediately open the new file — need to set code/language manually since node isn't in state yet
-    dispatch({ type: 'SET_LANGUAGE', payload: lang });
-    dispatch({ type: 'SET_CODE', payload: '' });
+    dispatch({ type: 'FS_IMPORT_FILE', payload: node });
   };
 
   const createFolder = (name: string, parentId: string | null) => {
-    const node: FolderNode = { id: uid(), type: 'folder', name, parentId, isOpen: true };
-    dispatch({ type: 'FS_ADD_NODE', payload: node });
+    dispatch({ type: 'FS_ADD_NODE', payload: { id: uid(), type: 'folder', name, parentId, isOpen: true } as FolderNode });
   };
 
   const deleteNode = (id: string) => dispatch({ type: 'FS_DELETE_NODE', payload: id });
-
   const renameNode = (id: string, name: string) => dispatch({ type: 'FS_RENAME_NODE', payload: { id, name } });
-
   const toggleFolder = (id: string) => dispatch({ type: 'FS_TOGGLE_FOLDER', payload: id });
-
   const openFile = (id: string) => dispatch({ type: 'FS_SET_ACTIVE', payload: id });
-
   const importFile = (node: FileNode) => dispatch({ type: 'FS_IMPORT_FILE', payload: node });
-
   const importFolder = (node: FolderNode) => dispatch({ type: 'FS_ADD_NODE', payload: node });
+  const reset = () => dispatch({ type: 'RESET' });
 
   return (
     <AppContext.Provider value={{
-      state, setCode, setLanguage, generateGuide, triggerAnalysis,
-      toggleStepComplete, dismissSuggestion, saveSnapshot, undoLastAction,
-      newProject, sendChatMessage,
+      state, loadProject, setCode, triggerAnalysis, generateGuide, saveVersion,
+      toggleStepComplete, sendChatMessage,
       createFile, createFolder, deleteNode, renameNode, toggleFolder, openFile,
-      importFile, importFolder,
-      explanationMap: explanationMap.current,
+      importFile, importFolder, reset,
     }}>
       {children}
     </AppContext.Provider>
