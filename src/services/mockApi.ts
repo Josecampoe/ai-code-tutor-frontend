@@ -64,3 +64,21 @@ export async function mockLoadProject(projectId: string): Promise<ProjectData> {
     guideSteps: [],
   };
 }
+
+export async function mockSendChatMessage(message: string, code: string, language: string): Promise<string> {
+  await delay(1000 + Math.random() * 800);
+
+  if (code.trim() === '') {
+    return `Great question! Start by writing some ${language} code in the editor and I'll help you understand it as you go.`;
+  }
+
+  const responses = [
+    `Looking at your ${language} code, I can see you're making good progress. ${message.includes('?') ? "To answer your question: the code works by processing each element sequentially." : "Keep going — you're on the right track."}`,
+    `That's a solid approach. In ${language}, what you've written follows a common pattern. Consider also handling edge cases like empty inputs or null values.`,
+    `Good thinking! The logic you've implemented looks correct. One thing to consider: you could make this more reusable by extracting it into a separate function.`,
+    `I see what you're trying to do. In ${language}, a cleaner way to express this would be to break the logic into smaller, named steps — it makes debugging much easier.`,
+    `Nice work so far. The structure of your code is clear. Next, think about what happens when the user provides unexpected input — that's usually where bugs hide.`,
+  ];
+
+  return responses[Math.floor(Math.random() * responses.length)];
+}

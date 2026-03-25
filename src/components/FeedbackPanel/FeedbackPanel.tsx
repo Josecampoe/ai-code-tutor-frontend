@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { ExplanationTab } from './ExplanationTab';
 import { SuggestionsTab } from './SuggestionsTab';
+import { ChatTab } from './ChatTab';
 import { useAppContext } from '../../context/AppContext';
 
-type Tab = 'explanation' | 'suggestions';
+type Tab = 'explanation' | 'suggestions' | 'chat';
 
 export function FeedbackPanel() {
   const [activeTab, setActiveTab] = useState<Tab>('explanation');
@@ -11,19 +12,9 @@ export function FeedbackPanel() {
 
   return (
     <aside className="flex flex-col w-[25%] min-w-[220px] h-full bg-[#1a1a2e] border-l border-[#2a2a3e]">
-      {/* Summary bar */}
-      {state.explanations.length > 0 && (
-        <div className="px-4 py-2 border-b border-[#2a2a3e] bg-[#16162a]">
-          <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">{
-            // summary comes from the last analysis — stored in explanations context
-            'Code analyzed successfully.'
-          }</p>
-        </div>
-      )}
-
       {/* Tabs */}
       <div className="flex border-b border-[#2a2a3e] shrink-0">
-        {(['explanation', 'suggestions'] as Tab[]).map((tab) => (
+        {(['explanation', 'suggestions', 'chat'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -39,13 +30,20 @@ export function FeedbackPanel() {
                 {state.suggestions.length}
               </span>
             )}
+            {tab === 'chat' && state.chatMessages.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 text-[10px]">
+                {state.chatMessages.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {activeTab === 'explanation' ? <ExplanationTab /> : <SuggestionsTab />}
+      <div className={`flex-1 overflow-y-auto p-4 ${activeTab === 'chat' ? 'flex flex-col' : ''}`}>
+        {activeTab === 'explanation' && <ExplanationTab />}
+        {activeTab === 'suggestions' && <SuggestionsTab />}
+        {activeTab === 'chat' && <ChatTab />}
       </div>
     </aside>
   );

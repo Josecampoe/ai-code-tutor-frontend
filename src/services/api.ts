@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { GuideResponse, AnalysisResponse, ProjectData, SaveResponse } from '../types';
-import { mockGenerateGuide, mockAnalyzeCode, mockSaveProject, mockLoadProject } from './mockApi';
+import { mockGenerateGuide, mockAnalyzeCode, mockSaveProject, mockLoadProject, mockSendChatMessage } from './mockApi';
 
 // Toggle this to false to use the real Java backend
 const USE_MOCK = true;
@@ -32,4 +32,10 @@ export async function loadProject(projectId: string): Promise<ProjectData> {
   if (USE_MOCK) return mockLoadProject(projectId);
   const { data } = await client.get<ProjectData>(`/projects/${projectId}`);
   return data;
+}
+
+export async function sendChatMessage(message: string, code: string, language: string): Promise<string> {
+  if (USE_MOCK) return mockSendChatMessage(message, code, language);
+  const { data } = await client.post<{ message: string }>('/chat/message', { message, code, language });
+  return data.message;
 }

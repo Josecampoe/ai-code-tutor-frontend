@@ -1,8 +1,8 @@
 import { createContext, useContext, useReducer, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { ProjectData, GuideStep, FunctionExplanation, Language, EditorAction } from '../types';
+import type { ProjectData, GuideStep, FunctionExplanation, Language, EditorAction, ChatMessage } from '../types';
 import { Stack, Queue, LinkedList, HashMap } from '../dataStructures';
-import { generateGuide as apiGenerateGuide, analyzeCode as apiAnalyzeCode } from '../services/api';
+import { generateGuide as apiGenerateGuide, analyzeCode as apiAnalyzeCode, sendChatMessage as apiSendChatMessage } from '../services/api';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 interface AppState {
@@ -14,6 +14,8 @@ interface AppState {
   suggestions: string[];
   isAnalyzing: boolean;
   isGeneratingGuide: boolean;
+  chatMessages: ChatMessage[];
+  isChatLoading: boolean;
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -27,6 +29,8 @@ type Action =
   | { type: 'DISMISS_SUGGESTION'; payload: number }
   | { type: 'SET_ANALYZING'; payload: boolean }
   | { type: 'SET_GENERATING_GUIDE'; payload: boolean }
+  | { type: 'ADD_CHAT_MESSAGE'; payload: ChatMessage }
+  | { type: 'SET_CHAT_LOADING'; payload: boolean }
   | { type: 'NEW_PROJECT' };
 
 const initialState: AppState = {
@@ -38,6 +42,8 @@ const initialState: AppState = {
   suggestions: [],
   isAnalyzing: false,
   isGeneratingGuide: false,
+  chatMessages: [],
+  isChatLoading: false,
 };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -70,6 +76,10 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, isAnalyzing: action.payload };
     case 'SET_GENERATING_GUIDE':
       return { ...state, isGeneratingGuide: action.payload };
+    case 'ADD_CHAT_MESSAGE':
+      return { ...state, chatMessages: [...state.chatMessages, action.payload] };
+    case 'SET_CHAT_LOADING':
+      return { ...state, isChatLoading: action.payload };
     case 'NEW_PROJECT':
       return { ...initialState };
     default:
@@ -89,6 +99,7 @@ interface AppContextValue {
   saveSnapshot: () => void;
   undoLastAction: () => void;
   newProject: () => void;
+  sendChatMessage: (message: string) => Promise<void>;
   // Data structure refs exposed for debugging / advanced use
   explanationMap: HashMap<string, FunctionExplanation>;
 }
@@ -181,6 +192,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'NEW_PROJECT' });
   };
 
+  const sendChatMessage = async (message: string) => {
+    const userMsg: ChatMessage = { id: `msg_${Date.now()}`, role: 'user', content: message, timestamp: Date.now() };
+    dispatch({ type: 'ADD_CHAT_MESSAGE', payload: userMsg });
+    dispatch({ type: 'SET_CHAT_LOADING', payload: true });
+    try {
+      const reply = await apiSendChatMessage(message, state.code, state.language);
+      const assistantMsg: ChatMessage = { id: `msg_${Date.now() + 1}`, role: 'assistant', content: reply, timestamp: Date.now() };
+      dispatch({ type: 'ADD_CHAT_MESSAGE', payload: assistantMsg });
+    } finally {
+      dispatch({ type: 'SET_CHAT_LOADING', payload: false });
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       state,
@@ -193,6 +217,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       saveSnapshot,
       undoLastAction,
       newProject,
+      sendChatMessage,
       explanationMap: explanationMap.current,
     }}>
       {children}

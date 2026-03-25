@@ -40,6 +40,17 @@ export interface SaveResponse {
   projectId: string;
 }
 
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
+
+export interface ChatResponse {
+  message: string;
+}
+
 export interface EditorAction {
   type: 'STEP_TOGGLE' | 'CODE_CHANGE' | 'SUGGESTION_DISMISS';
   payload: unknown;
