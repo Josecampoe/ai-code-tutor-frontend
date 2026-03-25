@@ -1,43 +1,76 @@
-export type Language = 'javascript' | 'python' | 'java' | 'cpp';
+// ─── Language ─────────────────────────────────────────────────────────────────
+export type Language = 'javascript' | 'python' | 'java' | 'typescript' | 'cpp';
 
+// ─── Backend entities ─────────────────────────────────────────────────────────
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  createdAt: string;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  description: string;
+  programmingLanguage: Language;
+  createdAt: string;
+  updatedAt: string;
+  userId: number;
+  username: string;
+}
+
+export interface CodeSnapshot {
+  id: number;
+  content: string;
+  versionLabel: string;
+  versionNumber: number;
+  createdAt: string;
+  projectId: number;
+}
+
+export interface AnalysisHistory {
+  id: number;
+  analyzedCode: string;
+  explanation: string;
+  suggestions: string;
+  analyzedAt: string;
+  projectId: number;
+}
+
+// ─── API request/response shapes ──────────────────────────────────────────────
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  description: string;
+  programmingLanguage: Language;
+  userId: number;
+}
+
+export interface AnalyzeCodeRequest {
+  code: string;
+  language: string;
+  projectId: number;
+}
+
+export interface SaveSnapshotRequest {
+  content: string;
+  versionLabel?: string;
+  projectId: number;
+}
+
+// ─── UI-only types ────────────────────────────────────────────────────────────
 export interface GuideStep {
   id: string;
   stepNumber: number;
   title: string;
   description: string;
   completed: boolean;
-}
-
-export interface GuideResponse {
-  steps: GuideStep[];
-  projectTitle: string;
-}
-
-export interface FunctionExplanation {
-  functionName: string;
-  explanation: string;
-  lineStart: number;
-  lineEnd: number;
-}
-
-export interface AnalysisResponse {
-  explanations: FunctionExplanation[];
-  suggestions: string[];
-  summary: string;
-}
-
-export interface ProjectData {
-  id?: string;
-  name: string;
-  description: string;
-  language: Language;
-  code: string;
-  guideSteps: GuideStep[];
-}
-
-export interface SaveResponse {
-  success: boolean;
-  projectId: string;
 }
 
 export interface ChatMessage {
@@ -47,19 +80,13 @@ export interface ChatMessage {
   timestamp: number;
 }
 
-export interface ChatResponse {
-  message: string;
-}
-
 export interface EditorAction {
   type: 'STEP_TOGGLE' | 'CODE_CHANGE' | 'SUGGESTION_DISMISS';
   payload: unknown;
   timestamp: number;
 }
 
-// ─── Virtual File System ──────────────────────────────────────────────────────
-export type FileNodeType = 'file' | 'folder';
-
+// ─── Virtual File System (local only) ────────────────────────────────────────
 export interface FileNode {
   id: string;
   type: 'file';

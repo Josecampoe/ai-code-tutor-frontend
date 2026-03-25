@@ -1,41 +1,59 @@
 import axios from 'axios';
-import type { GuideResponse, AnalysisResponse, ProjectData, SaveResponse } from '../types';
-import { mockGenerateGuide, mockAnalyzeCode, mockSaveProject, mockLoadProject, mockSendChatMessage } from './mockApi';
-
-// Toggle this to false to use the real Java backend
-const USE_MOCK = true;
+import type {
+  User, Project, CodeSnapshot, AnalysisHistory,
+  RegisterRequest, CreateProjectRequest, AnalyzeCodeRequest, SaveSnapshotRequest,
+} from '../types';
 
 const client = axios.create({
   baseURL: 'http://localhost:8080/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
-export async function generateGuide(description: string, language: string): Promise<GuideResponse> {
-  if (USE_MOCK) return mockGenerateGuide(description, language);
-  const { data } = await client.post<GuideResponse>('/guide/generate', { description, language });
-  return data;
-}
+// ─── Users ────────────────────────────────────────────────────────────────────
+export const registerUser = (body: RegisterRequest) =>
+  client.post<User>('/users', body).then((r) => r.data);
 
-export async function analyzeCode(code: string, language: string, projectDescription: string): Promise<AnalysisResponse> {
-  if (USE_MOCK) return mockAnalyzeCode(code, language);
-  const { data } = await client.post<AnalysisResponse>('/code/analyze', { code, language, projectDescription });
-  return data;
-}
+export const getUserById = (id: number) =>
+  client.get<User>(`/users/${id}`).then((r) => r.data);
 
-export async function saveProject(project: ProjectData): Promise<SaveResponse> {
-  if (USE_MOCK) return mockSaveProject(project);
-  const { data } = await client.post<SaveResponse>('/projects/save', project);
-  return data;
-}
+export const getUserByEmail = (email: string) =>
+  client.get<User>(`/users/email/${email}`).then((r) => r.data);
 
-export async function loadProject(projectId: string): Promise<ProjectData> {
-  if (USE_MOCK) return mockLoadProject(projectId);
-  const { data } = await client.get<ProjectData>(`/projects/${projectId}`);
-  return data;
-}
+export const listUsers = () =>
+  client.get<User[]>('/users').then((r) => r.data);
 
-export async function sendChatMessage(message: string, code: string, language: string): Promise<string> {
-  if (USE_MOCK) return mockSendChatMessage(message, code, language);
-  const { data } = await client.post<{ message: string }>('/chat/message', { message, code, language });
-  return data.message;
-}
+// ─── Projects ─────────────────────────────────────────────────────────────────
+export const createProject = (body: CreateProjectRequest) =>
+  client.post<Project>('/projects', body).then((r) => r.data);
+
+export const getProjectById = (id: number) =>
+  client.get<Project>(`/projects/${id}`).then((r) => r.data);
+
+export const getProjectsByUser = (userId: number) =>
+  client.get<Project[]>(`/projects/user/${userId}`).then((r) => r.data);
+
+// ─── Snapshots ────────────────────────────────────────────────────────────────
+export const saveSnapshot = (body: SaveSnapshotRequest) =>
+  client.post<CodeSnapshot>('/projects/snapshots', body).then((r) => r.data);
+
+export const getSnapshots = (projectId: number) =>
+  client.get<CodeSnapshot[]>(`/projects/${projectId}/snapshots`).then((r) => r.data);
+
+export const getLatestSnapshot = (projectId: number) =>
+  client.get<CodeSnapshot>(`/projects/${projectId}/snapshots/latest`).then((r) => r.data);
+
+// ─── Code / AI ────────────────────────────────────────────────────────────────
+export const analyzeCode = (body: AnalyzeCodeRequest) =>
+  client.post<AnalysisHistory>('/code/analyze', body).then((r) => r.data);
+
+// Guide expects plain text body
+export const generateGuide = (description: string) =>
+  client.post<string>('/code/guide', description, {
+    headers: { 'Content-Type': 'text/plain' },
+  }).then((r) => r.data);
+
+export const getAnalysisHistory = (projectId: number) =>
+  client.get<AnalysisHistory[]>(`/code/history/${projectId}`).then((r) => r.data);
+
+export const getRecentAnalysis = (projectId: number) =>
+  client.get<AnalysisHistory[]>(`/code/history/${projectId}/recent`).then((r) => r.data);
