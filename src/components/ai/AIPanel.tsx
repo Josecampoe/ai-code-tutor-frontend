@@ -1,114 +1,163 @@
-import { useState } from 'react';
-import { ChevronRight, ChevronLeft, Cpu, BookOpen } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Bot } from 'lucide-react';
 import { analyzeCode, generateGuide, getErrorMessage } from '../../services/api';
 import type { EditorData } from '../../types';
 
+// ─── Estructura de mensaje de chat ────────────────────────────────────────────
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'ai';
+  content: string;
+  timestamp: Date;
+}
+
+function uid() { return `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`; }
+
+// ─── Burbuja de mensaje ───────────────────────────────────────────────────────
+function MessageBubble({ msg }: { msg: ChatMessage }) {
+  const isUser = msg.role === 'user';
+  return (
+    <div className={`flex gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+      {!isUser && (
+        <div className="w-6 h-6 rounded-full bg-[#0e639c] flex items-center justify-center shrink-0 mt-0.5">
+          <Bot className="w-3.5 h-3.5 text-white" />
+        </div>
+      )}
+      <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words
+        ${isUser
+          ? 'bg-[#0e639c] text-white rounded-tr-none'
+          : 'bg-[#2d2d2d] text-[#cccccc] border border-[#3c3c3c] rounded-tl-none'}`}>
+        {msg.content}
+      </div>
+    </div>
+  );
+}
+
+// ─── Indicador de escritura (tres puntos) ─────────────────────────────────────
+function TypingIndicator() {
+  return (
+    <div className="flex gap-2">
+      <div className="w-6 h-6 rounded-full bg-[#0e639c] flex items-center justify-center shrink-0">
+        <Bot className="w-3.5 h-3.5 text-white" />
+      </div>
+      <div className="bg-[#2d2d2d] border border-[#3c3c3c] rounded-lg rounded-tl-none px-3 py-2 flex items-center gap-1">
+        {[0, 1, 2].map(i => (
+          <span key={i} className="w-1.5 h-1.5 bg-[#858585] rounded-full animate-bounce"
+            style={{ animationDelay: `${i * 0.15}s` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Panel principal ──────────────────────────────────────────────────────────
 interface Props { editorData: EditorData | null; code: string; }
 
-type Tab = 'analyze' | 'guide';
-
 export function AIPanel({ editorData, code }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
-  const [tab, setTab] = useState<Tab>('analyze');
-  const [analyzing, setAnalyzing] = useState(false);
-  const [guiding, setGuiding] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<{ explanation: string; suggestions: string } | null>(null);
-  const [guideResult, setGuideResult] = useState('');
-  const [guideInput, setGuideInput] = useState('');
-  const [error, setError] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll al último mensaje
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
+
+  const addMessage = (role: 'user' | 'ai', content: string) => {
+    setMessages(prev => [...prev, { id: uid(), role, content, timestamp: new Date() }]);
+  };
+
+  // Analizar el código actual del editor
   const handleAnalyze = async () => {
-    if (!editorData || !code.trim()) return;
-    setAnalyzing(true); setError('');
+    if (!editorData || !code.trim() || loading) return;
+    addMessage('user', 'Analizando código actual...');
+    setLoading(true);
     try {
-      const res = await analyzeCode({ code, language: editorData.language, projectId: editorData.projectId });
-      setAnalysisResult({ explanation: res.explanation, suggestions: res.suggestions });
-    } catch (err) { setError(getErrorMessage(err)); }
-    finally { setAnalyzing(false); }
+      const res = await analyzeCode({
+        code,
+        language: editorData.language,
+        projectId: editorData.projectId,
+      });
+      addMessage('ai', `${res.explanation}\n\n${res.suggestions ?? ''}`);
+    } catch (err) {
+      addMessage('ai', `Error: ${getErrorMessage(err)}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGuide = async () => {
-    if (!guideInput.trim()) return;
-    setGuiding(true); setError('');
-    try { setGuideResult(await generateGuide(guideInput)); }
-    catch (err) { setError(getErrorMessage(err)); }
-    finally { setGuiding(false); }
+  // Enviar mensaje libre del usuario
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput('');
+    addMessage('user', text);
+    setLoading(true);
+    try {
+      const res = await generateGuide(text);
+      addMessage('ai', res);
+    } catch (err) {
+      addMessage('ai', `Error: ${getErrorMessage(err)}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (collapsed) {
-    return (
-      <div className="flex flex-col items-center w-8 bg-[#252526] border-l border-[#1e1e1e] py-2">
-        <button onClick={() => setCollapsed(false)} className="text-[#858585] hover:text-white cursor-pointer">
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
 
   return (
     <div className="flex flex-col w-72 bg-[#252526] border-l border-[#1e1e1e] shrink-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e1e1e] shrink-0">
+      <div className="px-3 py-2 border-b border-[#1e1e1e] shrink-0">
         <span className="text-xs font-semibold uppercase tracking-widest text-[#bbbbbb]">AI Tutor</span>
-        <button onClick={() => setCollapsed(true)} className="text-[#858585] hover:text-white cursor-pointer">
-          <ChevronRight className="w-4 h-4" />
-        </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-[#1e1e1e] shrink-0">
-        {([['analyze', 'Analyze', <Cpu className="w-3.5 h-3.5" />], ['guide', 'Guide', <BookOpen className="w-3.5 h-3.5" />]] as const).map(([id, label, icon]) => (
-          <button key={id} onClick={() => setTab(id as Tab)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs transition-colors cursor-pointer
-              ${tab === id ? 'text-white border-b-2 border-[#007acc]' : 'text-[#858585] hover:text-[#cccccc]'}`}>
-            {icon}{label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
+      {/* Mensajes */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-        {error && <p className="text-xs text-[#f48771]">{error}</p>}
-
-        {tab === 'analyze' && (
-          <>
-            <button onClick={handleAnalyze} disabled={analyzing || !editorData}
-              className="w-full py-2 text-xs bg-[#0e639c] hover:bg-[#1177bb] text-white rounded disabled:opacity-50 cursor-pointer">
-              {analyzing ? 'Analyzing...' : 'Analyze Code'}
-            </button>
-            {analysisResult && (
-              <>
-                <div className="bg-[#1e1e1e] rounded p-3">
-                  <p className="text-xs text-[#569cd6] mb-1 font-semibold">Explanation</p>
-                  <p className="text-xs text-[#cccccc] leading-relaxed whitespace-pre-wrap">{analysisResult.explanation}</p>
-                </div>
-                {analysisResult.suggestions && (
-                  <div className="bg-[#1e1e1e] rounded p-3">
-                    <p className="text-xs text-[#4ec9b0] mb-1 font-semibold">Suggestions</p>
-                    <p className="text-xs text-[#cccccc] leading-relaxed whitespace-pre-wrap">{analysisResult.suggestions}</p>
-                  </div>
-                )}
-              </>
-            )}
-          </>
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center text-[#555] gap-2 py-10">
+            <Bot className="w-8 h-8 opacity-30" />
+            <p className="text-xs">Escribe un mensaje o analiza tu código.</p>
+          </div>
         )}
+        {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
+        {loading && <TypingIndicator />}
+        <div ref={bottomRef} />
+      </div>
 
-        {tab === 'guide' && (
-          <>
-            <textarea value={guideInput} onChange={e => setGuideInput(e.target.value)}
-              placeholder="Describe your project..." rows={3}
-              className="bg-[#1e1e1e] border border-[#3c3c3c] rounded px-3 py-2 text-xs text-[#cccccc] resize-none focus:outline-none focus:border-[#569cd6]" />
-            <button onClick={handleGuide} disabled={guiding || !guideInput.trim()}
-              className="w-full py-2 text-xs bg-[#0e639c] hover:bg-[#1177bb] text-white rounded disabled:opacity-50 cursor-pointer">
-              {guiding ? 'Generating...' : 'Generate Guide'}
-            </button>
-            {guideResult && (
-              <div className="bg-[#1e1e1e] rounded p-3">
-                <p className="text-xs text-[#cccccc] leading-relaxed whitespace-pre-wrap">{guideResult}</p>
-              </div>
-            )}
-          </>
-        )}
+      {/* Input area */}
+      <div className="p-3 border-t border-[#1e1e1e] flex flex-col gap-2 shrink-0">
+        {/* Botón analizar código — pequeño y discreto */}
+        <button
+          onClick={handleAnalyze}
+          disabled={loading || !editorData}
+          className="self-start text-[10px] px-2 py-0.5 rounded border border-[#3c3c3c] bg-[#2d2d2d] text-[#858585] hover:text-[#cccccc] hover:border-[#555] disabled:opacity-40 transition-colors cursor-pointer"
+        >
+          Analizar código
+        </button>
+
+        {/* Input + send */}
+        <div className="flex items-end gap-2">
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Escribe un mensaje... (Enter para enviar)"
+            rows={2}
+            className="flex-1 bg-[#1e1e1e] border border-[#3c3c3c] rounded px-2 py-1.5 text-xs text-[#cccccc] placeholder-[#555] resize-none focus:outline-none focus:border-[#569cd6]"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || loading}
+            className="p-1.5 rounded bg-[#0e639c] hover:bg-[#1177bb] disabled:opacity-40 transition-colors cursor-pointer shrink-0"
+            aria-label="Enviar"
+          >
+            <Send className="w-4 h-4 text-white" />
+          </button>
+        </div>
       </div>
     </div>
   );
