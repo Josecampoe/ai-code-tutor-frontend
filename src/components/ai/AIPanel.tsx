@@ -24,14 +24,14 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div className={`flex gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isUser && (
-        <div className="w-6 h-6 rounded-full bg-[#0e639c] flex items-center justify-center shrink-0 mt-0.5">
+        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6f42c1] to-[#0e639c] flex items-center justify-center shrink-0 mt-0.5 shadow-md">
           <Bot className="w-3.5 h-3.5 text-white" />
         </div>
       )}
-      <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words
+      <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words
         ${isUser
-          ? 'bg-[#0e639c] text-white rounded-tr-none'
-          : 'bg-[#2d2d2d] text-[#cccccc] border border-[#3c3c3c] rounded-tl-none'}`}>
+          ? 'bg-gradient-to-br from-[#0e639c] to-[#1177bb] text-white rounded-tr-sm shadow-lg shadow-[#0e639c]/20'
+          : 'bg-[#161622] text-[#e5e7eb] border border-[#ffffff0a] rounded-tl-sm'}`}>
         {msg.content}
       </div>
     </div>
@@ -128,18 +128,24 @@ export function AIPanel({ editorData, code }: Props) {
   };
 
   return (
-    <div className="flex flex-col w-72 bg-[#252526] border-l border-[#1e1e1e] shrink-0">
+    <div className="flex flex-col w-72 bg-[#0d0d14] border-l border-[#ffffff08] shrink-0">
       {/* Header */}
-      <div className="px-3 py-2 border-b border-[#1e1e1e] shrink-0">
-        <span className="text-xs font-semibold uppercase tracking-widest text-[#bbbbbb]">AI Tutor</span>
+      <div className="px-4 py-3 border-b border-[#ffffff08] shrink-0 flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-[#a78bfa] animate-pulse" />
+        <span className="text-xs font-semibold text-[#e5e7eb] tracking-wide">AI Tutor</span>
       </div>
 
       {/* Mensajes */}
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 bg-[#0d0d14]">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center text-[#555] gap-2 py-10">
-            <Bot className="w-8 h-8 opacity-30" />
-            <p className="text-xs">Escribe un mensaje o analiza tu código.</p>
+          <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-10">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#6f42c1]/30 to-[#0e639c]/30 border border-[#ffffff10] flex items-center justify-center">
+              <Bot className="w-6 h-6 text-[#a78bfa]" />
+            </div>
+            <div>
+              <p className="text-sm text-[#e5e7eb] font-medium">Hola, soy tu tutor IA</p>
+              <p className="text-xs text-[#6b7280] mt-1">Escribe un mensaje o analiza tu código.</p>
+            </div>
           </div>
         )}
         {messages.map(msg => <MessageBubble key={msg.id} msg={msg} />)}
@@ -148,30 +154,27 @@ export function AIPanel({ editorData, code }: Props) {
       </div>
 
       {/* Input area */}
-      <div className="p-3 border-t border-[#1e1e1e] flex flex-col gap-2 shrink-0">
-        {/* Botón analizar código — pequeño y discreto */}
+      <div className="p-3 border-t border-[#ffffff08] flex flex-col gap-2 shrink-0 bg-[#0d0d14]">
         <button
           onClick={handleAnalyze}
           disabled={loading || !editorData}
-          className="self-start text-[10px] px-2 py-0.5 rounded border border-[#3c3c3c] bg-[#2d2d2d] text-[#858585] hover:text-[#cccccc] hover:border-[#555] disabled:opacity-40 transition-colors cursor-pointer"
+          className="self-start text-[10px] px-2.5 py-1 rounded-full border border-[#a78bfa]/30 bg-[#a78bfa]/10 text-[#a78bfa] hover:bg-[#a78bfa]/20 disabled:opacity-40 transition-colors cursor-pointer font-medium"
         >
           Analizar código
         </button>
-
-        {/* Input + send */}
         <div className="flex items-end gap-2">
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Escribe un mensaje... (Enter para enviar)"
+            placeholder="Escribe un mensaje..."
             rows={2}
-            className="flex-1 bg-[#1e1e1e] border border-[#3c3c3c] rounded px-2 py-1.5 text-xs text-[#cccccc] placeholder-[#555] resize-none focus:outline-none focus:border-[#569cd6]"
+            className="flex-1 bg-[#161622] border border-[#ffffff10] rounded-xl px-3 py-2 text-xs text-[#e5e7eb] placeholder-[#4b5563] resize-none focus:outline-none focus:border-[#6f42c1]/50 transition-all"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || loading}
-            className="p-1.5 rounded bg-[#0e639c] hover:bg-[#1177bb] disabled:opacity-40 transition-colors cursor-pointer shrink-0"
+            className="p-2 rounded-xl bg-gradient-to-br from-[#6f42c1] to-[#0e639c] hover:opacity-90 disabled:opacity-40 transition-all cursor-pointer shrink-0 shadow-lg shadow-[#6f42c1]/20"
             aria-label="Enviar"
           >
             <Send className="w-4 h-4 text-white" />
