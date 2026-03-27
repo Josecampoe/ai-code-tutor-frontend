@@ -23,6 +23,7 @@ export function EditorPage() {
   const [openFile, setOpenFile] = useState<OpenFile | null>(null);
   const [code, setCode] = useState('');
   const [activeTopic, setActiveTopic] = useState<LearnTopic | null>(null);
+  const [activeTopicLang, setActiveTopicLang] = useState<Language>('javascript');
   // Estado del sistema de archivos virtual — vive aquí para que persista entre re-renders
   const [fsNodes, setFsNodes] = useState<VNode[]>([]);
   const [fsActiveId, setFsActiveId] = useState<string | null>(null);
@@ -34,8 +35,9 @@ export function EditorPage() {
     setActiveTopic(null);
   };
 
-  const handleSelectTopic = (topic: LearnTopic) => {
+  const handleSelectTopic = (topic: LearnTopic, language: Language) => {
     setActiveTopic(topic);
+    setActiveTopicLang(language);
     setOpenFile(null);
   };
 
@@ -72,7 +74,7 @@ export function EditorPage() {
             />
           )}
           {activity === 'learn' && (
-            <LearnSidebar onSelectTopic={handleSelectTopic} activeTopicId={activeTopic?.id ?? null} />
+            <LearnSidebar userId={user.id} onSelectTopic={handleSelectTopic} activeTopicId={activeTopic?.id ?? null} />
           )}
           {activity === 'settings' && (
             <div className="flex flex-col gap-2 p-4">
@@ -90,7 +92,7 @@ export function EditorPage() {
         {/* Editor area */}
         <div className="flex flex-1 overflow-hidden">
           {activeTopic ? (
-            <ExercisePanel topic={activeTopic} userId={user.id} />
+            <ExercisePanel topic={activeTopic} language={activeTopicLang} userId={user.id} />
           ) : (
             <CodeEditor editorData={editorData} code={code} onChange={setCode} />
           )}
