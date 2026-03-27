@@ -65,3 +65,11 @@ export function getErrorMessage(err: unknown): string {
   }
   return 'Error inesperado. Intenta de nuevo.';
 }
+
+// ─── Chat unificado ───────────────────────────────────────────────────────────
+export const sendChatMessage = (body: {
+  message: string;
+  history: { role: 'user' | 'ai'; content: string }[];
+  currentCode?: string;
+  language?: string;
+}) => client.post<{ message: string }>('/chat', body).then(r => r.data);
