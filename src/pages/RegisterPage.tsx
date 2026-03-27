@@ -18,7 +18,14 @@ export function RegisterPage() {
       localStorage.setItem('user', JSON.stringify({ id: user.id, username: user.username, email: user.email }));
       navigate('/');
     } catch (err) {
-      setError(getErrorMessage(err));
+      const msg = getErrorMessage(err).toLowerCase();
+      if (msg.includes('email')) {
+        setError('Este correo ya está registrado');
+      } else if (msg.includes('username') || msg.includes('usuario')) {
+        setError('Este nombre de usuario ya está en uso');
+      } else {
+        setError(getErrorMessage(err));
+      }
     } finally {
       setLoading(false);
     }
