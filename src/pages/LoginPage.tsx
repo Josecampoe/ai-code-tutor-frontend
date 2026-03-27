@@ -1,13 +1,10 @@
 import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { GraduationCap } from 'lucide-react';
-import { loginUser } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import { Button } from '../components/shared/Button';
+import { loginUser, getErrorMessage } from '../services/api';
 
-interface Props { onGoRegister: () => void; }
-
-export function LoginPage({ onGoRegister }: Props) {
-  const { login } = useAuth();
+export function LoginPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,66 +15,47 @@ export function LoginPage({ onGoRegister }: Props) {
     setLoading(true);
     try {
       const res = await loginUser(form);
-      login({ id: res.id, username: res.username, email: res.email, createdAt: '' });
-    } catch (err: unknown) {
-      if (axios_isAxiosError(err) && err.response?.data) {
-        setError(String(err.response.data));
-      } else {
-        setError('Email o contraseña incorrectos');
-      }
+      localStorage.setItem('user', JSON.stringify({ id: res.id, username: res.username, email: res.email }));
+      navigate('/');
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#1e1e2e] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#1e1e1e] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-2 mb-8">
-          <GraduationCap className="w-10 h-10 text-indigo-400" />
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-            CodeTutor
-          </h1>
-          <p className="text-sm text-gray-500">Sign in to continue</p>
+          <GraduationCap className="w-10 h-10 text-[#569cd6]" />
+          <h1 className="text-2xl font-bold text-white font-mono">CodeTutor</h1>
+          <p className="text-sm text-[#858585]">Sign in to continue</p>
         </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 bg-[#1a1a2e] border border-[#2a2a3e] rounded-xl p-6">
-          {error && <p className="text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-md px-3 py-2">{error}</p>}
-
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 bg-[#252526] border border-[#3c3c3c] rounded p-6">
+          {error && <p className="text-xs text-[#f48771] bg-[#5a1d1d] border border-[#f48771]/30 rounded px-3 py-2">{error}</p>}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-gray-400">Email</label>
-            <input
-              type="email" required value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="you@example.com"
-              className="bg-[#16162a] border border-[#2a2a3e] rounded-md px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
+            <label className="text-xs text-[#cccccc]">Email</label>
+            <input type="email" required value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              className="bg-[#3c3c3c] border border-[#555] rounded px-3 py-2 text-sm text-[#cccccc] focus:outline-none focus:border-[#569cd6]" />
           </div>
-
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-gray-400">Password</label>
-            <input
-              type="password" required value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="bg-[#16162a] border border-[#2a2a3e] rounded-md px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
+            <label className="text-xs text-[#cccccc]">Password</label>
+            <input type="password" required value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })}
+              className="bg-[#3c3c3c] border border-[#555] rounded px-3 py-2 text-sm text-[#cccccc] focus:outline-none focus:border-[#569cd6]" />
           </div>
-
-          <Button type="submit" loading={loading} className="w-full justify-center mt-1">
-            Sign In
-          </Button>
+          <button type="submit" disabled={loading}
+            className="mt-1 bg-[#0e639c] hover:bg-[#1177bb] disabled:opacity-50 text-white text-sm font-medium py-2 rounded transition-colors cursor-pointer">
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
         </form>
-
-        <p className="text-center text-xs text-gray-600 mt-4">
+        <p className="text-center text-xs text-[#858585] mt-4">
           Don't have an account?{' '}
-          <button onClick={onGoRegister} className="text-indigo-400 hover:text-indigo-300 cursor-pointer">Register</button>
+          <Link to="/register" className="text-[#569cd6] hover:underline">Register</Link>
         </p>
       </div>
     </div>
   );
-}
-
-// inline helper to avoid importing axios in the component
-function axios_isAxiosError(err: unknown): err is { response?: { data?: unknown } } {
-  return typeof err === 'object' && err !== null && 'response' in err;
 }
