@@ -56,13 +56,38 @@ function TypingIndicator() {
 }
 
 // ─── Panel principal ──────────────────────────────────────────────────────────
-interface Props { editorData: EditorData | null; code: string; }
+interface Props { editorData: EditorData | null; code: string; exerciseContext: { statement: string; code: string } | null; }
 
-export function AIPanel({ editorData, code }: Props) {
+export function AIPanel({ editorData, code, exerciseContext }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prevExerciseRef = useRef<string | null>(null);
+
+  // Cuando llega un nuevo ejercicio, inyecta automáticamente el mensaje de ayuda
+  useEffect(() => {
+    if (!exerciseContext) return;
+    const key = exerciseContext.statement;
+    if (prevExerciseRef.current === key) return;
+    prevExerciseRef.current = key;
+
+    const helpMessage = `Necesito ayuda con este ejercicio:\n\n${exerciseContext.statement}\n\nMi código actual:\n\`\`\`\n${exerciseContext.code || '(vacío)'}\n\`\`\``;
+    const userMsg: ChatMessage = { id: uid(), role: 'user', content: helpMessage, timestamp: new Date() };
+    const updated = [...messages, userMsg];
+    setMessages(updated);
+    setLoading(true);
+    sendChatMessage({
+      message: helpMessage,
+      history: updated.map(m => ({ role: m.role, content: m.content })),
+      currentCode: exerciseContext.code,
+      language: editorData?.language,
+    }).then(res => {
+      addMessage('ai', stripEmojis(res.message));
+    }).catch(err => {
+      addMessage('ai', `Error: ${getErrorMessage(err)}`);
+    }).finally(() => setLoading(false));
+  }, [exerciseContext]);
 
   // Auto-scroll al último mensaje
   useEffect(() => {

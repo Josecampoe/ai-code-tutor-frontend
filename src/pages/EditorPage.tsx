@@ -24,6 +24,7 @@ export function EditorPage() {
   const [code, setCode] = useState('');
   const [activeTopic, setActiveTopic] = useState<LearnTopic | null>(null);
   const [activeTopicLang, setActiveTopicLang] = useState<Language>('javascript');
+  const [exerciseContext, setExerciseContext] = useState<{ statement: string; code: string } | null>(null);
   // Estado del sistema de archivos virtual — vive aquí para que persista entre re-renders
   const [fsNodes, setFsNodes] = useState<VNode[]>([]);
   const [fsActiveId, setFsActiveId] = useState<string | null>(null);
@@ -108,11 +109,16 @@ export function EditorPage() {
         {/* Editor area */}
         <div className="flex flex-1 overflow-hidden">
           {activeTopic ? (
-            <ExercisePanel topic={activeTopic} language={activeTopicLang} userId={user.id} />
+            <ExercisePanel
+              topic={activeTopic}
+              language={activeTopicLang}
+              userId={user.id}
+              onAskHelp={(statement, code) => setExerciseContext({ statement, code })}
+            />
           ) : (
             <CodeEditor editorData={editorData} code={code} onChange={setCode} />
           )}
-          <AIPanel editorData={editorData} code={code} />
+          <AIPanel editorData={editorData} code={code} exerciseContext={exerciseContext} />
         </div>
       </div>
 

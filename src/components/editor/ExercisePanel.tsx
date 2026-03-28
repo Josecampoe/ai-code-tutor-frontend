@@ -1,174 +1,144 @@
 import { useState } from 'react';
 import MonacoEditor from '@monaco-editor/react';
-import { generateExercise, getHint, evaluateSolution, getErrorMessage } from '../../services/api';
+import { generateExercise, evaluateSolution, getErrorMessage } from '../../services/api';
 import type { LearnTopic, Language, Exercise, ExerciseEvaluation } from '../../types';
-import { Lightbulb, Send, RefreshCw, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { RefreshCw, Send, CheckCircle, XCircle, MessageCircle } from 'lucide-react';
 
-interface Props { topic: LearnTopic; language: Language; userId: number; }
+interface Props {
+  topic: LearnTopic;
+  language: Language;
+  userId: number;
+  onAskHelp: (statement: string, code: string) => void;
+}
 
-type Status = 'idle' | 'generating' | 'ready' | 'submitting' | 'correct' | 'incorrect';
+const MONACO_LANG: Record<string, string> = {
+  javascript: 'javascript', typescript: 'typescript',
+  python: 'python', java: 'java', cpp: 'cpp',
+};
 
-export function ExercisePanel({ topic, language, userId }: Props) {
+export function ExercisePanel({ topic, language, userId, onAskHelp }: Props) {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [code, setCode] = useState('');
-  const [hint, setHint] = useState('');
-  const [hintVisible, setHintVisible] = useState(false);
   const [evaluation, setEvaluation] = useState<ExerciseEvaluation | null>(null);
-  const [status, setStatus] = useState<Status>('idle');
+  const [generating, setGenerating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [statementOpen, setStatementOpen] = useState(true);
 
   const handleGenerate = async () => {
-    setStatus('generating');
+    setGenerating(true);
     setError('');
-    setHint('');
-    setHintVisible(false);
     setEvaluation(null);
     try {
       const ex = await generateExercise({ topicId: topic.id, language, userId });
       setExercise(ex);
       setCode(ex.starterCode);
-      setStatus('ready');
-      setStatementOpen(true);
     } catch (err) {
       setError(getErrorMessage(err));
-      setStatus('idle');
+    } finally {
+      setGenerating(false);
     }
-  };
-
-  const handleHint = async () => {
-    if (!exercise) return;
-    try {
-      const h = await getHint(exercise.id);
-      setHint(h);
-      setHintVisible(true);
-    } catch (err) { setError(getErrorMessage(err)); }
   };
 
   const handleSubmit = async () => {
     if (!exercise) return;
-    setStatus('submitting');
+    setSubmitting(true);
     setError('');
     try {
       const result = await evaluateSolution({ exerciseId: exercise.id, userCode: code, language, userId });
       setEvaluation(result);
-      setStatus(result.correct ? 'correct' : 'incorrect');
     } catch (err) {
       setError(getErrorMessage(err));
-      setStatus('ready');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleReset = () => {
-    if (exercise) setCode(exercise.starterCode);
-    setEvaluation(null);
-    setStatus('ready');
-    setHintVisible(false);
-  };
-
-  const MONACO_LANG: Record<string, string> = {
-    javascript: 'javascript', typescript: 'typescript',
-    python: 'python', java: 'java', cpp: 'cpp',
+  const handleAskHelp = () => {
+    if (!exercise) return;
+    // Manda el enunciado y el código actual al chat de la IA
+    onAskHelp(exercise.statement, code);
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[#1e1e1e]">
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#0d0d14]">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-[#252526] border-b border-[#1e1e1e] shrink-0 flex-wrap">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-[#080810] border-b border-[#ffffff06] shrink-0 flex-wrap">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-sm font-semibold text-[#cccccc] truncate">{topic.name}</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded border border-[#3c3c3c] bg-[#2d2d2d] text-[#858585] font-mono shrink-0">
+          <span className="text-sm font-semibold text-white truncate">{topic.name}</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full border border-[#a78bfa]/30 bg-[#a78bfa]/10 text-[#a78bfa] font-mono shrink-0">
             {language}
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {exercise && (
             <>
-              <button onClick={handleReset} title="Reset code"
-                className="p-1.5 text-[#858585] hover:text-[#cccccc] cursor-pointer transition-colors">
-                <RefreshCw className="w-3.5 h-3.5" />
+              <button onClick={handleAskHelp}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#161622] border border-[#ffffff10] text-[#a78bfa] hover:bg-[#a78bfa]/10 rounded-lg cursor-pointer transition-colors">
+                <MessageCircle className="w-3.5 h-3.5" /> Pedir ayuda
               </button>
-              <button onClick={handleHint} disabled={hintVisible}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[#2d2d2d] border border-[#3c3c3c] text-[#dcdcaa] hover:border-[#dcdcaa]/50 disabled:opacity-40 rounded cursor-pointer transition-colors">
-                <Lightbulb className="w-3 h-3" /> Hint
-              </button>
-              <button onClick={handleSubmit} disabled={status === 'submitting'}
-                className="flex items-center gap-1.5 px-3 py-1 text-xs bg-[#388a34] hover:bg-[#4a9e46] text-white rounded disabled:opacity-50 cursor-pointer transition-colors">
+              <button onClick={handleSubmit} disabled={submitting}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#388a34] hover:bg-[#4a9e46] text-white rounded-lg disabled:opacity-50 cursor-pointer transition-colors">
                 <Send className="w-3 h-3" />
-                {status === 'submitting' ? 'Evaluating...' : 'Submit'}
+                {submitting ? 'Evaluando...' : 'Entregar'}
               </button>
             </>
           )}
-          <button onClick={handleGenerate} disabled={status === 'generating'}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs bg-[#0e639c] hover:bg-[#1177bb] text-white rounded disabled:opacity-50 cursor-pointer transition-colors">
-            <RefreshCw className={`w-3 h-3 ${status === 'generating' ? 'animate-spin' : ''}`} />
-            {status === 'generating' ? 'Generating...' : exercise ? 'New Exercise' : 'Generate Exercise'}
+          <button onClick={handleGenerate} disabled={generating}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gradient-to-r from-[#0e639c] to-[#1177bb] hover:opacity-90 text-white rounded-lg disabled:opacity-50 cursor-pointer transition-all shadow-lg shadow-[#0e639c]/20">
+            <RefreshCw className={`w-3 h-3 ${generating ? 'animate-spin' : ''}`} />
+            {generating ? 'Generando...' : exercise ? 'Nuevo ejercicio' : 'Generar ejercicio'}
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="px-4 py-2 bg-[#5a1d1d] border-b border-[#f48771]/30 text-xs text-[#f48771] shrink-0">
+        <div className="px-4 py-2 bg-red-500/10 border-b border-red-500/20 text-xs text-red-400 shrink-0">
           {error}
         </div>
       )}
 
       {!exercise ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-[#555] gap-4">
-          <div className="text-center">
-            <p className="text-4xl mb-3">{'{ }'}</p>
-            <p className="text-sm text-[#858585]">{topic.name}</p>
-            <p className="text-xs mt-1 text-[#555]">Click "Generate Exercise" to start</p>
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 p-8">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#a78bfa]/20 to-[#0e639c]/20 border border-[#ffffff08] flex items-center justify-center">
+            <span className="text-3xl">{'{ }'}</span>
           </div>
-          <button onClick={handleGenerate}
-            className="px-4 py-2 text-sm bg-[#0e639c] hover:bg-[#1177bb] text-white rounded cursor-pointer transition-colors">
-            Generate Exercise
+          <div>
+            <p className="text-sm font-semibold text-white">{topic.name}</p>
+            <p className="text-xs text-[#6b7280] mt-1">Genera un ejercicio para empezar a practicar</p>
+          </div>
+          <button onClick={handleGenerate} disabled={generating}
+            className="px-5 py-2.5 text-sm bg-gradient-to-r from-[#6f42c1] to-[#0e639c] hover:opacity-90 text-white rounded-xl cursor-pointer transition-all shadow-lg shadow-[#6f42c1]/20 font-medium">
+            {generating ? 'Generando...' : 'Generar ejercicio'}
           </button>
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Enunciado colapsable */}
-          <div className="shrink-0 border-b border-[#1e1e1e]">
-            <button onClick={() => setStatementOpen(o => !o)}
-              className="w-full flex items-center justify-between px-4 py-2 bg-[#252526] text-xs text-[#858585] hover:text-[#cccccc] cursor-pointer">
-              <span className="font-semibold uppercase tracking-wider">Exercise</span>
-              {statementOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-            {statementOpen && (
-              <div className="px-4 py-3 bg-[#1e1e1e] text-sm text-[#cccccc] leading-relaxed max-h-36 overflow-y-auto">
-                {exercise.statement}
-              </div>
-            )}
+          {/* Enunciado */}
+          <div className="px-4 py-3 bg-[#161622] border-b border-[#ffffff06] shrink-0 max-h-40 overflow-y-auto">
+            <p className="text-[10px] font-semibold text-[#6b7280] uppercase tracking-wider mb-2">Ejercicio</p>
+            <p className="text-sm text-[#e5e7eb] leading-relaxed">{exercise.statement}</p>
           </div>
 
-          {/* Hint */}
-          {hintVisible && hint && (
-            <div className="px-4 py-2 bg-[#1e3a1e] border-b border-[#1e1e1e] text-xs text-[#4ec9b0] shrink-0 flex items-start gap-2">
-              <Lightbulb className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-              <span>{hint}</span>
-            </div>
-          )}
-
-          {/* Resultado de evaluación */}
+          {/* Resultado evaluación */}
           {evaluation && (
-            <div className={`px-4 py-3 border-b border-[#1e1e1e] shrink-0 flex items-start gap-3
-              ${evaluation.correct ? 'bg-[#1e3a1e]' : 'bg-[#3a1e1e]'}`}>
+            <div className={`px-4 py-3 border-b border-[#ffffff06] shrink-0 flex items-start gap-3
+              ${evaluation.correct ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
               {evaluation.correct
-                ? <CheckCircle className="w-4 h-4 text-[#4ec9b0] shrink-0 mt-0.5" />
-                : <XCircle className="w-4 h-4 text-[#f48771] shrink-0 mt-0.5" />}
+                ? <CheckCircle className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+                : <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />}
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-xs font-semibold ${evaluation.correct ? 'text-[#4ec9b0]' : 'text-[#f48771]'}`}>
-                    {evaluation.correct ? 'Correct!' : 'Not quite'}
+                  <span className={`text-xs font-semibold ${evaluation.correct ? 'text-green-400' : 'text-red-400'}`}>
+                    {evaluation.correct ? '¡Correcto!' : 'Intenta de nuevo'}
                   </span>
-                  <span className="text-[10px] text-[#858585]">Score: {evaluation.score}/100</span>
+                  <span className="text-[10px] text-[#6b7280]">Puntaje: {evaluation.score}/100</span>
                 </div>
-                <p className="text-xs text-[#cccccc] leading-relaxed">{evaluation.feedback}</p>
+                <p className="text-xs text-[#d1d5db] leading-relaxed">{evaluation.feedback}</p>
               </div>
             </div>
           )}
 
-          {/* Editor Monaco */}
+          {/* Editor */}
           <div className="flex-1 overflow-hidden">
             <MonacoEditor
               height="100%"
@@ -184,7 +154,6 @@ export function ExercisePanel({ topic, language, userId }: Props) {
                 automaticLayout: true,
                 padding: { top: 12 },
                 lineNumbers: 'on',
-                renderLineHighlight: 'line',
               }}
             />
           </div>
