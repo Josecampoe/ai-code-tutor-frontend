@@ -10,10 +10,10 @@ const SECTIONS: { category: LearnCategory; label: string; icon: React.ReactNode 
 ];
 
 const LANGUAGES: { value: Language; label: string; color: string }[] = [
-  { value: 'javascript', label: 'JS', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-  { value: 'typescript', label: 'TS', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  { value: 'python', label: 'PY', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
-  { value: 'java', label: 'JV', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  { value: 'javascript', label: 'JavaScript', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+  { value: 'typescript', label: 'TypeScript', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  { value: 'python', label: 'Python', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  { value: 'java', label: 'Java', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
 ];
 
 interface Props {

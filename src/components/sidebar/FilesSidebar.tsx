@@ -9,7 +9,21 @@ import type { Project, Language } from '../../types';
 import type { VNode, VFile, VFolder } from '../../types/vfs';
 import { uid, detectLang } from '../../types/vfs';
 
-const LANG_ICON: Record<string, string> = { javascript: '🟨', typescript: '🔷', python: '🐍', java: '☕', cpp: '⚙️' };
+const LANG_ICON: Record<string, string> = {
+  javascript: 'JS',
+  typescript: 'TS',
+  python: 'PY',
+  java: 'JV',
+  cpp: 'C+',
+};
+
+const LANG_COLOR: Record<string, string> = {
+  javascript: 'text-yellow-400',
+  typescript: 'text-blue-400',
+  python: 'text-green-400',
+  java: 'text-orange-400',
+  cpp: 'text-cyan-400',
+};
 
 // ─── Nodo del árbol ───────────────────────────────────────────────────────────
 function TreeNode({ node, depth, nodes, activeId, onOpen, onToggle, onDelete, onRename }:
@@ -277,7 +291,9 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
             {projects.map(p => (
               <button key={p.id} onClick={() => handleLoadProject(p)}
                 className="w-full flex items-center gap-2 px-4 py-1.5 text-xs text-[#cccccc] hover:bg-[#2a2d2e] text-left cursor-pointer">
-                <span>{LANG_ICON[p.programmingLanguage] ?? '📄'}</span>
+                <span className={`text-[10px] font-mono font-bold ${LANG_COLOR[p.programmingLanguage] ?? 'text-gray-400'}`}>
+                  {LANG_ICON[p.programmingLanguage] ?? '??'}
+                </span>
                 <span className="truncate">{p.name}</span>
               </button>
             ))}
