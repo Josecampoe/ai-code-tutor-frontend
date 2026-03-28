@@ -56,9 +56,9 @@ function TypingIndicator() {
 }
 
 // ─── Panel principal ──────────────────────────────────────────────────────────
-interface Props { editorData: EditorData | null; code: string; exerciseContext: { statement: string; code: string } | null; }
+interface Props { editorData: EditorData | null; code: string; exerciseContext: { statement: string; code: string } | null; onAiResponse?: (msg: string) => void; }
 
-export function AIPanel({ editorData, code, exerciseContext }: Props) {
+export function AIPanel({ editorData, code, exerciseContext, onAiResponse }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,6 +96,7 @@ export function AIPanel({ editorData, code, exerciseContext }: Props) {
 
   const addMessage = (role: 'user' | 'ai', content: string) => {
     setMessages(prev => [...prev, { id: uid(), role, content, timestamp: new Date() }]);
+    if (role === 'ai') onAiResponse?.(content);
   };
 
   // Construye el historial para enviar al backend

@@ -28,12 +28,18 @@ export function EditorPage() {
   // Estado del sistema de archivos virtual — vive aquí para que persista entre re-renders
   const [fsNodes, setFsNodes] = useState<VNode[]>([]);
   const [fsActiveId, setFsActiveId] = useState<string | null>(null);
+  const [errorCount, setErrorCount] = useState(0);
+  const [canValidate, setCanValidate] = useState(false);
+  const [hasAiWarning, setHasAiWarning] = useState(false);
 
   // Cuando el sidebar abre un archivo (virtual o del disco o del backend)
   const handleOpenFile = (name: string, content: string, language: Language) => {
     setOpenFile({ name, content, language });
     setCode(content);
     setActiveTopic(null);
+    setErrorCount(0);
+    setCanValidate(false);
+    setHasAiWarning(false);
   };
 
   const handleSelectTopic = (topic: LearnTopic, language: Language) => {
@@ -116,9 +122,27 @@ export function EditorPage() {
               onAskHelp={(statement, code) => setExerciseContext({ statement, code })}
             />
           ) : (
-            <CodeEditor editorData={editorData} code={code} onChange={setCode} />
+            <CodeEditor
+              editorData={editorData}
+              code={code}
+              onChange={setCode}
+              onErrorCountChange={(count, validate) => {
+                setErrorCount(count);
+                setCanValidate(validate);
+              }}
+            />
           )}
-          <AIPanel editorData={editorData} code={code} exerciseContext={exerciseContext} />
+          <AIPanel
+            editorData={editorData}
+            code={code}
+            exerciseContext={exerciseContext}
+            onAiResponse={(msg) => {
+              const lower = msg.toLowerCase();
+              if (['error', 'falta', 'incorrecto', 'problema', 'fallo'].some(w => lower.includes(w))) {
+                setHasAiWarning(true);
+              }
+            }}
+          />
         </div>
       </div>
 
@@ -128,6 +152,9 @@ export function EditorPage() {
         projectName={openFile?.name ?? activeTopic?.name ?? 'No file open'}
         version={0}
         username={user.username ?? ''}
+        errorCount={errorCount}
+        canValidate={canValidate}
+        hasAiWarning={hasAiWarning}
       />
     </div>
   );
