@@ -56,13 +56,13 @@ export function EditorPage() {
   } : null;
 
   return (
-    <div className="flex flex-col h-screen bg-[#1e1e1e] text-[#cccccc] overflow-hidden font-mono">
+    <div className="flex flex-col h-screen bg-[#0d0d14] text-[#cccccc] overflow-hidden font-mono">
       <div className="flex flex-1 overflow-hidden">
         {/* Activity Bar */}
         <ActivityBar active={activity} onChange={setActivity} />
 
         {/* Sidebar */}
-        <div className="w-56 bg-[#252526] border-r border-[#1e1e1e] flex flex-col overflow-hidden shrink-0">
+        <div className="w-56 bg-[#0d0d14] border-r border-[#ffffff08] flex flex-col overflow-hidden shrink-0">
           {activity === 'files' && (
             <FilesSidebar
               userId={user.id}
@@ -78,34 +78,26 @@ export function EditorPage() {
           )}
           {activity === 'settings' && (
             <div className="flex flex-col h-full">
-              {/* Header */}
-              <div className="px-3 py-2 border-b border-[#1e1e1e] shrink-0">
-                <p className="text-xs font-semibold uppercase tracking-widest text-[#bbbbbb]">Settings</p>
+              <div className="px-3 py-2 border-b border-[#ffffff08] shrink-0">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[#6b7280]">Settings</p>
               </div>
-
-              {/* User card */}
               <div className="p-4 flex flex-col gap-4">
-                <div className="flex flex-col items-center gap-3 py-4 px-3 bg-[#2d2d2d] rounded-lg border border-[#3c3c3c]">
-                  {/* Avatar con inicial */}
-                  <div className="w-14 h-14 rounded-full bg-[#0e639c] flex items-center justify-center text-white text-2xl font-bold select-none">
+                <div className="flex flex-col items-center gap-3 py-5 px-3 bg-[#161622] rounded-2xl border border-[#ffffff0a]">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#6f42c1] to-[#0e639c] flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-[#6f42c1]/30 select-none">
                     {user.username?.charAt(0).toUpperCase()}
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-semibold text-white">{user.username}</p>
-                    <p className="text-xs text-[#858585] mt-0.5">{user.email}</p>
+                    <p className="text-xs text-[#6b7280] mt-0.5">{user.email}</p>
                   </div>
-                  <div className="w-full h-px bg-[#3c3c3c]" />
-                  <div className="w-full flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[#858585]">User ID</span>
-                      <span className="text-[#cccccc] font-mono">#{user.id}</span>
-                    </div>
+                  <div className="w-full h-px bg-[#ffffff08]" />
+                  <div className="w-full flex items-center justify-between text-xs">
+                    <span className="text-[#6b7280]">User ID</span>
+                    <span className="text-[#9ca3af] font-mono bg-[#0d0d14] px-2 py-0.5 rounded">#{user.id}</span>
                   </div>
                 </div>
-
-                {/* Sign out */}
                 <button onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#f48771] border border-[#f48771]/30 rounded hover:bg-[#f48771]/10 transition-colors cursor-pointer">
+                  className="w-full flex items-center justify-center gap-2 py-2 text-xs text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-colors cursor-pointer">
                   Sign out
                 </button>
               </div>
