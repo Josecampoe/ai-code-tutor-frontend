@@ -14,6 +14,13 @@ const MONACO_LANG: Record<string, string> = {
   python: 'python', java: 'java', cpp: 'cpp',
 };
 
+function getMonacoLang(language: string, fileName: string): string {
+  // Si el archivo no tiene extensión conocida, usar plaintext
+  const hasKnownExt = /\.(js|jsx|ts|tsx|py|java|cpp|h|cc)$/.test(fileName);
+  if (!hasKnownExt) return 'plaintext';
+  return MONACO_LANG[language] ?? 'plaintext';
+}
+
 export function CodeEditor({ editorData, code, onChange }: Props) {
   const saving = useRef(false);
 
@@ -60,7 +67,7 @@ export function CodeEditor({ editorData, code, onChange }: Props) {
       </div>
       <MonacoEditor
         height="100%"
-        language={MONACO_LANG[editorData.language] ?? 'javascript'}
+        language={getMonacoLang(editorData.language, editorData.projectName)}
         value={code}
         theme="vs-dark"
         onChange={v => onChange(v ?? '')}

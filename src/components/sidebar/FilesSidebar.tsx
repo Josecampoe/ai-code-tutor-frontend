@@ -130,7 +130,7 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   };
 
   const confirmCreateFile = () => {
-    const name = newFileName.trim() || 'newFile.js';
+    const name = newFileName.trim() || 'newFile';
     const lang = detectLang(name);
     const node: VFile = { id: uid(), type: 'file', name, content: '', language: lang, parentId: null };
     setNodes(prev => [...prev, node]);
