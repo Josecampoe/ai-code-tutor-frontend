@@ -12,6 +12,15 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// Attach JWT token to every request if available
+client.interceptors.request.use(config => {
+  const token = localStorage.getItem('codetutor_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const registerUser = (body: RegisterRequest) =>
   client.post<User>('/users', body).then(r => r.data);

@@ -4,17 +4,18 @@ import type { User } from '../types';
 
 interface AuthContextValue {
   user: User | null;
-  login: (user: User) => void;
+  login: (user: User, token: string) => void;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STORAGE_KEY = 'codetutor_user';
+const USER_STORAGE_KEY = 'user';
+const TOKEN_STORAGE_KEY = 'codetutor_token';
 
 function loadUser(): User | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(USER_STORAGE_KEY);
     return raw ? (JSON.parse(raw) as User) : null;
   } catch {
     return null;
@@ -24,14 +25,16 @@ function loadUser(): User | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(loadUser);
 
-  const login = (u: User) => {
-    setUser(u);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+  const login = (authenticatedUser: User, token: string) => {
+    setUser(authenticatedUser);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(authenticatedUser));
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
   };
 
   return (
@@ -42,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
 }

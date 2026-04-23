@@ -54,6 +54,7 @@ export interface LearnTopic {
   name: string;
   description: string;
   category: LearnCategory;
+  difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
 }
 
 export interface Exercise {
@@ -80,7 +81,7 @@ export interface UserProgress {
 // ─── Requests ─────────────────────────────────────────────────────────────────
 export interface RegisterRequest { username: string; email: string; password: string; }
 export interface LoginRequest { email: string; password: string; }
-export interface LoginResponse { id: number; username: string; email: string; message: string; }
+export interface LoginResponse { id: number; username: string; email: string; token: string; message: string; }
 export interface CreateProjectRequest { name: string; description: string; programmingLanguage: Language; userId: number; }
 export interface SaveSnapshotRequest { content: string; versionLabel?: string; projectId: number; }
 export interface AnalyzeCodeRequest { code: string; language: string; projectId: number; }
