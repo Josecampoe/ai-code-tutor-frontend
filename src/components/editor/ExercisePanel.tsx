@@ -538,10 +538,10 @@ export function ExercisePanel({ topic, language, userId, onAskHelp }: Props) {
         />
 
         {/* RIGHT — Editor + inline AI panel */}
-        <div className="flex-1 flex flex-col overflow-hidden" style={{ display: 'grid', gridTemplateRows: '1fr auto' }}>
+        <div className="flex-1 flex flex-col overflow-hidden">
 
-          {/* Editor label */}
-          <div className="flex flex-col overflow-hidden">
+          {/* Editor area */}
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-1.5 bg-[#080810] border-b border-[#1e1e2e] shrink-0" style={{ height: 36 }}>
               <div className="w-4 h-4 rounded bg-[#89b4fa]/20 border border-[#89b4fa]/30 flex items-center justify-center shrink-0">
                 <span className="text-[9px] text-[#89b4fa] font-bold">2</span>
@@ -552,7 +552,7 @@ export function ExercisePanel({ topic, language, userId, onAskHelp }: Props) {
               )}
             </div>
 
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <MonacoEditor
                 height="100%"
                 language={MONACO_LANGUAGE_MAP[language] ?? 'javascript'}
@@ -575,7 +575,7 @@ export function ExercisePanel({ topic, language, userId, onAskHelp }: Props) {
             </div>
           </div>
 
-          {/* Inline AI panel at the bottom */}
+          {/* Inline AI panel — shrink-0 so it doesn't compress, grows via drag */}
           <InlineAiPanel
             currentCode={studentCode}
             language={language}
