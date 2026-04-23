@@ -56,9 +56,9 @@ function TypingIndicator() {
 }
 
 // ─── Panel principal ──────────────────────────────────────────────────────────
-interface Props { editorData: EditorData | null; code: string; exerciseContext: { statement: string; code: string } | null; onAiResponse?: (msg: string) => void; }
+interface Props { editorData: EditorData | null; code: string; exerciseContext: { statement: string; code: string } | null; onAiResponse?: (msg: string) => void; width?: number; }
 
-export function AIPanel({ editorData, code, exerciseContext, onAiResponse }: Props) {
+export function AIPanel({ editorData, code, exerciseContext, onAiResponse, width = 288 }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -154,7 +154,7 @@ export function AIPanel({ editorData, code, exerciseContext, onAiResponse }: Pro
   };
 
   return (
-    <div className="flex flex-col w-72 bg-[#0d0d14] border-l border-[#ffffff08] shrink-0">
+    <div className="flex flex-col bg-[#0d0d14] border-l border-[#ffffff08] shrink-0" style={{ width }}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-[#ffffff08] shrink-0 flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-[#a78bfa] animate-pulse" />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActivityBar, type ActivityView } from '../components/layout/ActivityBar';
 import { StatusBar } from '../components/layout/StatusBar';
@@ -36,6 +36,9 @@ export function EditorPage() {
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([]);
   const [terminalRunning, setTerminalRunning] = useState(false);
+  const [aiPanelWidth, setAiPanelWidth] = useState(288); // default w-72
+  const [isResizingAiPanel, setIsResizingAiPanel] = useState(false);
+  const aiPanelResizerRef = useRef<HTMLDivElement>(null);
 
   // Cuando el sidebar abre un archivo (virtual o del disco o del backend)
   const handleOpenFile = (name: string, content: string, language: Language) => {
@@ -61,6 +64,29 @@ export function EditorPage() {
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  const handleAiPanelResizerMouseDown = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    setIsResizingAiPanel(true);
+    const startX = event.clientX;
+    const startWidth = aiPanelWidth;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      // Dragging left increases width, dragging right decreases
+      const delta = startX - moveEvent.clientX;
+      const newWidth = Math.max(200, Math.min(600, startWidth + delta));
+      setAiPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingAiPanel(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [aiPanelWidth]);
 
   // EditorData mínimo para el CodeEditor y AIPanel (sin projectId real cuando es archivo local)
   const editorData = openFile ? {
@@ -180,19 +206,30 @@ export function EditorPage() {
             )}
           </div>
 
-          {/* AI Panel — hidden when exercise is active to give full space to the exercise layout */}
+          {/* AI Panel — hidden when exercise is active */}
           {!activeTopic && (
-            <AIPanel
-              editorData={editorData}
-              code={code}
-              exerciseContext={exerciseContext}
-              onAiResponse={(msg) => {
-                const lower = msg.toLowerCase();
-                if (['error', 'falta', 'incorrecto', 'problema', 'fallo'].some(w => lower.includes(w))) {
-                  setHasAiWarning(true);
-                }
-              }}
-            />
+            <>
+              {/* Resizer */}
+              <div
+                ref={aiPanelResizerRef}
+                onMouseDown={handleAiPanelResizerMouseDown}
+                className="w-1 shrink-0 cursor-col-resize transition-colors hover:bg-[#89b4fa]/30"
+                style={{ background: isResizingAiPanel ? 'rgba(137,180,250,0.3)' : 'transparent' }}
+                aria-label="Redimensionar panel de IA"
+              />
+              <AIPanel
+                editorData={editorData}
+                code={code}
+                exerciseContext={exerciseContext}
+                width={aiPanelWidth}
+                onAiResponse={(msg) => {
+                  const lower = msg.toLowerCase();
+                  if (['error', 'falta', 'incorrecto', 'problema', 'fallo'].some(w => lower.includes(w))) {
+                    setHasAiWarning(true);
+                  }
+                }}
+              />
+            </>
           )}
         </div>
       </div>
