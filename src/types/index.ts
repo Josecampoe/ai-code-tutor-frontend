@@ -46,6 +46,33 @@ export interface AnalysisHistory {
   projectId: number;
 }
 
+// ─── Code Analysis (Pedagogical) ──────────────────────────────────────────────
+export interface CodeBlock {
+  blockName: string;
+  blockType: 'function' | 'class' | 'loop' | 'conditional' | 'variable' | 'other';
+  explanation: string;
+}
+
+export interface CodeQuality {
+  score: number; // 1-5
+  feedback: string;
+}
+
+export interface CodeSuggestion {
+  order: number; // 1, 2, or 3
+  title: string;
+  description: string;
+}
+
+export interface CodeAnalysisResponse {
+  summary: string;
+  blocks: CodeBlock[];
+  codeQuality: CodeQuality;
+  suggestions: CodeSuggestion[];
+  hasErrors: boolean;
+  errorHint: string | null;
+}
+
 // ─── Learn ────────────────────────────────────────────────────────────────────
 export type LearnCategory = 'DATA_STRUCTURE' | 'DESIGN_PATTERN' | 'ALGORITHM';
 
@@ -85,6 +112,7 @@ export interface LoginResponse { id: number; username: string; email: string; to
 export interface CreateProjectRequest { name: string; description: string; programmingLanguage: Language; userId: number; }
 export interface SaveSnapshotRequest { content: string; versionLabel?: string; projectId: number; }
 export interface AnalyzeCodeRequest { code: string; language: string; projectId: number; }
+export interface AnalyzeCodePedagogicalRequest { code: string; language: string; projectDescription: string; }
 export interface GenerateExerciseRequest { topicId: number; language: Language; userId: number; }
 export interface EvaluateSolutionRequest { exerciseId: number; userCode: string; language: Language; userId: number; }
 

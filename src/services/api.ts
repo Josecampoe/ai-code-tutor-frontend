@@ -3,6 +3,7 @@ import type {
   User, Project, EditorData, CodeSnapshot, AnalysisHistory,
   RegisterRequest, LoginRequest, LoginResponse,
   CreateProjectRequest, SaveSnapshotRequest, AnalyzeCodeRequest,
+  AnalyzeCodePedagogicalRequest, CodeAnalysisResponse,
   LearnTopic, LearnCategory, Exercise, ExerciseEvaluation, UserProgress,
   GenerateExerciseRequest, EvaluateSolutionRequest,
 } from '../types';
@@ -44,6 +45,9 @@ export const saveSnapshot = (body: SaveSnapshotRequest) =>
 // ─── IA ───────────────────────────────────────────────────────────────────────
 export const analyzeCode = (body: AnalyzeCodeRequest) =>
   client.post<AnalysisHistory>('/code/analyze', body).then(r => r.data);
+
+export const analyzeCodePedagogical = (body: AnalyzeCodePedagogicalRequest) =>
+  client.post<CodeAnalysisResponse>('/projects/analyze', body).then(r => r.data);
 
 export const generateGuide = (description: string) =>
   client.post<string>('/code/guide', description, {
