@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { EditorPage } from './pages/EditorPage';
@@ -12,11 +13,22 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/" element={
+        <Route path="/practice" element={
           <ProtectedRoute>
             <EditorPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/learning" element={
+          <ProtectedRoute>
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">Learning Mode</h1>
+                <p className="text-gray-600">Coming soon...</p>
+              </div>
+            </div>
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
