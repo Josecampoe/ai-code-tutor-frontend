@@ -2,37 +2,23 @@ import { useState, useRef, useEffect } from 'react';
 import {
   FilePlus, FolderPlus, FileInput, FolderInput,
   ChevronRight, ChevronDown, File, Folder, FolderOpen,
-  Trash2, Pencil, ChevronUp,
+  Trash2, Pencil, Plus,
 } from 'lucide-react';
 import { getProjectsByUser, loadEditor, getErrorMessage } from '../../services/api';
 import type { Project, Language } from '../../types';
 import type { VNode, VFile, VFolder } from '../../types/vfs';
 import { uid, detectLang } from '../../types/vfs';
 
-const LANG_ICON: Record<string, string> = {
-  javascript: 'JS',
-  typescript: 'TS',
-  python: 'PY',
-  java: 'JV',
-  cpp: 'C+',
-};
-
-const LANG_COLOR: Record<string, string> = {
-  javascript: 'text-yellow-400',
-  typescript: 'text-blue-400',
-  python: 'text-green-400',
-  java: 'text-orange-400',
-  cpp: 'text-cyan-400',
-};
-
-// ─── Nodo del árbol ───────────────────────────────────────────────────────────
-function TreeNode({ node, depth, nodes, activeId, onOpen, onToggle, onDelete, onRename }:
+// ─── Nodo del árbol con drag & drop ──────────────────────────────────────────
+function TreeNode({ node, depth, nodes, activeId, onOpen, onToggle, onDelete, onRename, onCreateFileIn, onDrop }:
   { node: VNode; depth: number; nodes: VNode[]; activeId: string | null;
     onOpen: (n: VFile) => void; onToggle: (id: string) => void;
-    onDelete: (id: string) => void; onRename: (id: string, name: string) => void; }) {
+    onDelete: (id: string) => void; onRename: (id: string, name: string) => void;
+    onCreateFileIn: (folderId: string) => void; onDrop: (nodeId: string, targetFolderId: string) => void; }) {
 
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(node.name);
+  const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const children = nodes.filter(n => n.parentId === node.id);
   const isActive = node.type === 'file' && activeId === node.id;
@@ -42,12 +28,40 @@ function TreeNode({ node, depth, nodes, activeId, onOpen, onToggle, onDelete, on
     setEditing(false);
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('nodeId', node.id);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (node.type === 'folder') {
+      e.preventDefault();
+      setDragOver(true);
+    }
+  };
+
+  const handleDragLeave = () => setDragOver(false);
+
+  const handleDropOnFolder = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const draggedId = e.dataTransfer.getData('nodeId');
+    if (draggedId && draggedId !== node.id) {
+      onDrop(draggedId, node.id);
+    }
+  };
+
   return (
     <div>
       <div
+        draggable={!editing}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDropOnFolder}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
         className={`group flex items-center gap-1 py-0.5 pr-2 cursor-pointer select-none text-sm
-          ${isActive ? 'bg-[#EEEDFE] text-[#534AB7]' : 'hover:bg-[#F0F1F3] text-[#111827]'}`}
+          ${isActive ? 'bg-[#EEEDFE] text-[#534AB7]' : 'hover:bg-[#F0F1F3] text-[#111827]'}
+          ${dragOver ? 'bg-[#EEEDFE] border border-dashed border-[#534AB7]' : ''}`}
         onClick={() => node.type === 'file' ? onOpen(node as VFile) : onToggle(node.id)}
       >
         {node.type === 'folder'
@@ -72,6 +86,10 @@ function TreeNode({ node, depth, nodes, activeId, onOpen, onToggle, onDelete, on
           : <span className="flex-1 truncate text-xs">{node.name}</span>}
 
         <span className="hidden group-hover:flex items-center gap-1 shrink-0">
+          {node.type === 'folder' && (
+            <button onClick={e => { e.stopPropagation(); onCreateFileIn(node.id); }}
+              className="text-[#9CA3AF] hover:text-[#534AB7] cursor-pointer" title="New file inside"><Plus className="w-3 h-3" /></button>
+          )}
           <button onClick={e => { e.stopPropagation(); setEditing(true); setTimeout(() => inputRef.current?.select(), 0); }}
             className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><Pencil className="w-3 h-3" /></button>
           <button onClick={e => { e.stopPropagation(); onDelete(node.id); }}
@@ -81,13 +99,14 @@ function TreeNode({ node, depth, nodes, activeId, onOpen, onToggle, onDelete, on
 
       {node.type === 'folder' && (node as VFolder).open && children.map(c =>
         <TreeNode key={c.id} node={c} depth={depth + 1} nodes={nodes} activeId={activeId}
-          onOpen={onOpen} onToggle={onToggle} onDelete={onDelete} onRename={onRename} />
+          onOpen={onOpen} onToggle={onToggle} onDelete={onDelete} onRename={onRename}
+          onCreateFileIn={onCreateFileIn} onDrop={onDrop} />
       )}
     </div>
   );
 }
 
-// ─── Props — el estado de nodos viene del padre para que persista ─────────────
+// ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   userId: number;
   nodes: VNode[];
@@ -102,6 +121,7 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [creatingFile, setCreatingFile] = useState(false);
+  const [creatingFileParent, setCreatingFileParent] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [creatingFolder, setCreatingFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -114,6 +134,8 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
       getProjectsByUser(userId).then(setProjects).catch(() => {});
     }
   }, [projectsOpen, userId, projects.length]);
+
+  const hasProject = nodes.some(n => n.type === 'folder' && n.parentId === null);
 
   const openFile = (node: VFile) => {
     setActiveId(node.id);
@@ -145,21 +167,59 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
     }));
   };
 
-  const createFile = () => {
+  // Move a node into a folder (drag & drop)
+  const moveNode = (nodeId: string, targetFolderId: string) => {
+    // Prevent moving a folder into itself or its children
+    const isChild = (parentId: string, childId: string): boolean => {
+      const node = nodes.find(n => n.id === childId);
+      if (!node || !node.parentId) return false;
+      if (node.parentId === parentId) return true;
+      return isChild(parentId, node.parentId);
+    };
+    if (nodeId === targetFolderId || isChild(nodeId, targetFolderId)) return;
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, parentId: targetFolderId } : n));
+  };
+
+  // Create file — if no project exists, force creating a folder first
+  const createFile = (parentId?: string) => {
+    if (!hasProject && !parentId) {
+      // Force create project folder first
+      setCreatingFolder(true);
+      setNewFolderName('');
+      setTimeout(() => newFolderInputRef.current?.focus(), 0);
+      return;
+    }
     setCreatingFile(true);
+    setCreatingFileParent(parentId ?? null);
+    setNewFileName('');
+    setTimeout(() => newFileInputRef.current?.focus(), 0);
+  };
+
+  const createFileInFolder = (folderId: string) => {
+    // Open the folder first
+    setNodes(prev => prev.map(n => n.id === folderId && n.type === 'folder' ? { ...n, open: true } : n));
+    setCreatingFile(true);
+    setCreatingFileParent(folderId);
     setNewFileName('');
     setTimeout(() => newFileInputRef.current?.focus(), 0);
   };
 
   const confirmCreateFile = () => {
-    const name = newFileName.trim() || 'newFile';
+    const name = newFileName.trim() || 'newFile.js';
     const lang = detectLang(name);
-    const node: VFile = { id: uid(), type: 'file', name, content: '', language: lang, parentId: null };
+    // If no parent specified but projects exist, put inside first project folder
+    let parentId = creatingFileParent;
+    if (!parentId && hasProject) {
+      const firstFolder = nodes.find(n => n.type === 'folder' && n.parentId === null);
+      parentId = firstFolder?.id ?? null;
+    }
+    const node: VFile = { id: uid(), type: 'file', name, content: '', language: lang, parentId };
     setNodes(prev => [...prev, node]);
     setActiveId(node.id);
     onOpenFile(name, '', lang);
     setCreatingFile(false);
     setNewFileName('');
+    setCreatingFileParent(null);
   };
 
   const createFolder = () => {
@@ -169,7 +229,7 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   };
 
   const confirmCreateFolder = () => {
-    const name = newFolderName.trim() || 'newFolder';
+    const name = newFolderName.trim() || 'new-project';
     const node: VFolder = { id: uid(), type: 'folder', name, parentId: null, open: true };
     setNodes(prev => [...prev, node]);
     setCreatingFolder(false);
@@ -177,10 +237,13 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   };
 
   const handleOpenFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Put imported files inside first project folder if exists
+    const firstFolder = nodes.find(n => n.type === 'folder' && n.parentId === null);
+    const parentId = firstFolder?.id ?? null;
     for (const file of Array.from(e.target.files ?? [])) {
       const content = await file.text();
       const lang = detectLang(file.name);
-      const node: VFile = { id: uid(), type: 'file', name: file.name, content, language: lang, parentId: null };
+      const node: VFile = { id: uid(), type: 'file', name: file.name, content, language: lang, parentId };
       setNodes(prev => [...prev, node]);
       setActiveId(node.id);
       onOpenFile(file.name, content, lang);
@@ -218,10 +281,13 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   const handleLoadProject = async (p: Project) => {
     try {
       const data = await loadEditor(p.id);
-      const node: VFile = { id: uid(), type: 'file', name: p.name + '.' + data.language, content: data.currentCode ?? '', language: data.language, parentId: null };
-      setNodes(prev => [...prev, node]);
-      setActiveId(node.id);
-      onOpenFile(node.name, node.content, data.language);
+      // Create a project folder with the file inside
+      const folderId = uid();
+      const folder: VFolder = { id: folderId, type: 'folder', name: p.name, parentId: null, open: true };
+      const file: VFile = { id: uid(), type: 'file', name: p.name + '.' + data.language, content: data.currentCode ?? '', language: data.language, parentId: folderId };
+      setNodes(prev => [...prev, folder, file]);
+      setActiveId(file.id);
+      onOpenFile(file.name, file.content, data.language);
     } catch (err) { console.error(getErrorMessage(err)); }
   };
 
@@ -239,69 +305,76 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#E5E7EB] shrink-0">
         <span className="text-[11px] font-semibold uppercase tracking-widest text-[#9CA3AF]">Explorer</span>
         <div className="flex items-center gap-1.5">
-          <button onClick={() => fileInputRef.current?.click()} title="Open file" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FileInput className="w-3.5 h-3.5" /></button>
-          <button onClick={() => folderInputRef.current?.click()} title="Open folder" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FolderInput className="w-3.5 h-3.5" /></button>
+          <button onClick={() => fileInputRef.current?.click()} title="Import file" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FileInput className="w-3.5 h-3.5" /></button>
+          <button onClick={() => folderInputRef.current?.click()} title="Import folder" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FolderInput className="w-3.5 h-3.5" /></button>
           <div className="w-px h-3 bg-[#E5E7EB]" />
           <button onClick={() => createFile()} title="New file" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FilePlus className="w-3.5 h-3.5" /></button>
-          <button onClick={() => createFolder()} title="New folder" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FolderPlus className="w-3.5 h-3.5" /></button>
+          <button onClick={() => createFolder()} title="New project folder" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FolderPlus className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto py-1">
+        {/* Empty state — prompt to create a project */}
         {roots.length === 0 && !creatingFile && !creatingFolder && (
-          <div className="px-4 py-6 text-center text-xs text-[#9CA3AF]">
-            <p>No files yet.</p>
-            <p className="mt-1">Open or create a file to start.</p>
+          <div className="px-4 py-6 text-center">
+            <FolderPlus className="w-8 h-8 text-[#E5E7EB] mx-auto mb-2" />
+            <p className="text-xs text-[#9CA3AF]">Create a project folder to start</p>
+            <button
+              onClick={createFolder}
+              className="mt-3 px-3 py-1.5 bg-[#534AB7] text-white text-xs rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
+            >
+              + New Project
+            </button>
+          </div>
+        )}
+
+        {/* Input para nueva carpeta/proyecto */}
+        {creatingFolder && (
+          <div className="flex items-center gap-1 px-3 py-0.5">
+            <Folder className="w-4 h-4 text-[#D97706] shrink-0" />
+            <input ref={newFolderInputRef} value={newFolderName}
+              onChange={e => setNewFolderName(e.target.value)}
+              onBlur={() => { if (newFolderName.trim()) confirmCreateFolder(); else setCreatingFolder(false); }}
+              onKeyDown={e => { if (e.key === 'Enter') confirmCreateFolder(); if (e.key === 'Escape') setCreatingFolder(false); }}
+              placeholder="project-name"
+              className="flex-1 bg-[#F8F9FA] border border-[#534AB7] rounded px-1 text-xs text-[#111827] outline-none" />
           </div>
         )}
 
         {/* Input para nuevo archivo */}
         {creatingFile && (
-          <div className="flex items-center gap-1 px-3 py-0.5">
+          <div className="flex items-center gap-1 px-3 py-0.5" style={{ paddingLeft: creatingFileParent ? '22px' : undefined }}>
             <File className="w-4 h-4 text-[#534AB7] shrink-0" />
             <input ref={newFileInputRef} value={newFileName}
               onChange={e => setNewFileName(e.target.value)}
-              onBlur={() => confirmCreateFile()}
+              onBlur={() => { if (newFileName.trim()) confirmCreateFile(); else setCreatingFile(false); }}
               onKeyDown={e => { if (e.key === 'Enter') confirmCreateFile(); if (e.key === 'Escape') setCreatingFile(false); }}
               placeholder="filename.js"
               className="flex-1 bg-[#F8F9FA] border border-[#534AB7] rounded px-1 text-xs text-[#111827] outline-none" />
           </div>
         )}
 
-        {/* Input para nueva carpeta */}
-        {creatingFolder && (
-          <div className="flex items-center gap-1 px-3 py-0.5">
-            <Folder className="w-4 h-4 text-[#D97706] shrink-0" />
-            <input ref={newFolderInputRef} value={newFolderName}
-              onChange={e => setNewFolderName(e.target.value)}
-              onBlur={() => confirmCreateFolder()}
-              onKeyDown={e => { if (e.key === 'Enter') confirmCreateFolder(); if (e.key === 'Escape') setCreatingFolder(false); }}
-              placeholder="folder name"
-              className="flex-1 bg-[#F8F9FA] border border-[#534AB7] rounded px-1 text-xs text-[#111827] outline-none" />
-          </div>
-        )}
-
         {roots.map(n => (
           <TreeNode key={n.id} node={n} depth={0} nodes={nodes} activeId={activeId}
-            onOpen={openFile} onToggle={toggleFolder} onDelete={deleteNode} onRename={renameNode} />
+            onOpen={openFile} onToggle={toggleFolder} onDelete={deleteNode} onRename={renameNode}
+            onCreateFileIn={createFileInFolder} onDrop={moveNode} />
         ))}
       </div>
 
+      {/* Backend projects */}
       <div className="border-t border-[#E5E7EB] shrink-0">
         <button onClick={() => setProjectsOpen(o => !o)}
           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#9CA3AF] hover:text-[#111827] cursor-pointer">
-          {projectsOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          <span className="uppercase tracking-widest font-semibold">My Projects</span>
+          {projectsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          <span className="uppercase tracking-widest font-semibold">Saved Projects</span>
         </button>
         {projectsOpen && (
           <div className="max-h-40 overflow-y-auto pb-1">
-            {projects.length === 0 && <p className="text-xs text-[#9CA3AF] px-4 py-2">No projects found.</p>}
+            {projects.length === 0 && <p className="text-xs text-[#9CA3AF] px-4 py-2">No saved projects.</p>}
             {projects.map(p => (
               <button key={p.id} onClick={() => handleLoadProject(p)}
                 className="w-full flex items-center gap-2 px-4 py-1.5 text-xs text-[#111827] hover:bg-[#F0F1F3] text-left cursor-pointer">
-                <span className={`text-[10px] font-mono font-bold ${LANG_COLOR[p.programmingLanguage] ?? 'text-gray-400'}`}>
-                  {LANG_ICON[p.programmingLanguage] ?? '??'}
-                </span>
+                <Folder className="w-3.5 h-3.5 text-[#D97706]" />
                 <span className="truncate">{p.name}</span>
               </button>
             ))}
