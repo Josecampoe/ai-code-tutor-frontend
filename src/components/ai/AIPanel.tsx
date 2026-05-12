@@ -24,14 +24,14 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div className={`flex gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isUser && (
-        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6f42c1] to-[#0e639c] flex items-center justify-center shrink-0 mt-0.5 shadow-md">
-          <Bot className="w-3.5 h-3.5 text-white" />
+        <div className="w-6 h-6 rounded-full bg-[#EEEDFE] flex items-center justify-center shrink-0 mt-0.5">
+          <Bot className="w-3.5 h-3.5 text-[#534AB7]" />
         </div>
       )}
       <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap break-words
         ${isUser
-          ? 'bg-gradient-to-br from-[#0e639c] to-[#1177bb] text-white rounded-tr-sm shadow-lg shadow-[#0e639c]/20'
-          : 'bg-[#161622] text-[#e5e7eb] border border-[#ffffff0a] rounded-tl-sm'}`}>
+          ? 'bg-[#534AB7] text-white rounded-tr-sm'
+          : 'bg-[#F8F9FA] text-[#111827] border border-[#E5E7EB] rounded-tl-sm'}`}>
         {msg.content}
       </div>
     </div>
@@ -42,12 +42,12 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
 function TypingIndicator() {
   return (
     <div className="flex gap-2">
-      <div className="w-6 h-6 rounded-full bg-[#0e639c] flex items-center justify-center shrink-0">
-        <Bot className="w-3.5 h-3.5 text-white" />
+      <div className="w-6 h-6 rounded-full bg-[#EEEDFE] flex items-center justify-center shrink-0">
+        <Bot className="w-3.5 h-3.5 text-[#534AB7]" />
       </div>
-      <div className="bg-[#2d2d2d] border border-[#3c3c3c] rounded-lg rounded-tl-none px-3 py-2 flex items-center gap-1">
+      <div className="bg-[#F8F9FA] border border-[#E5E7EB] rounded-lg rounded-tl-none px-3 py-2 flex items-center gap-1">
         {[0, 1, 2].map(i => (
-          <span key={i} className="w-1.5 h-1.5 bg-[#858585] rounded-full animate-bounce"
+          <span key={i} className="w-1.5 h-1.5 bg-[#9CA3AF] rounded-full animate-bounce"
             style={{ animationDelay: `${i * 0.15}s` }} />
         ))}
       </div>
@@ -154,23 +154,23 @@ export function AIPanel({ editorData, code, exerciseContext, onAiResponse, width
   };
 
   return (
-    <div className="flex flex-col bg-[#0d0d14] border-l border-[#ffffff08] shrink-0" style={{ width }}>
+    <div className="flex flex-col bg-white border-l border-[#E5E7EB] shrink-0" style={{ width }}>
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[#ffffff08] shrink-0 flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-[#a78bfa] animate-pulse" />
-        <span className="text-xs font-semibold text-[#e5e7eb] tracking-wide">AI Tutor</span>
+      <div className="px-4 py-3 border-b border-[#E5E7EB] shrink-0 flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-[#22C55E]" />
+        <span className="text-xs font-semibold text-[#111827] tracking-wide">AI Tutor</span>
       </div>
 
       {/* Mensajes */}
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 bg-[#0d0d14]">
+      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-10">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#6f42c1]/30 to-[#0e639c]/30 border border-[#ffffff10] flex items-center justify-center">
-              <Bot className="w-6 h-6 text-[#a78bfa]" />
+            <div className="w-12 h-12 rounded-2xl bg-[#EEEDFE] flex items-center justify-center">
+              <Bot className="w-6 h-6 text-[#534AB7]" />
             </div>
             <div>
-              <p className="text-sm text-[#e5e7eb] font-medium">Hola, soy tu tutor IA</p>
-              <p className="text-xs text-[#6b7280] mt-1">Escribe un mensaje o analiza tu código.</p>
+              <p className="text-sm text-[#111827] font-medium">Hola, soy tu tutor IA</p>
+              <p className="text-xs text-[#9CA3AF] mt-1">Escribe un mensaje o analiza tu código.</p>
             </div>
           </div>
         )}
@@ -180,11 +180,11 @@ export function AIPanel({ editorData, code, exerciseContext, onAiResponse, width
       </div>
 
       {/* Input area */}
-      <div className="p-3 border-t border-[#ffffff08] flex flex-col gap-2 shrink-0 bg-[#0d0d14]">
+      <div className="p-3 border-t border-[#E5E7EB] flex flex-col gap-2 shrink-0">
         <button
           onClick={handleAnalyze}
           disabled={loading || !editorData}
-          className="self-start text-[10px] px-2.5 py-1 rounded-full border border-[#a78bfa]/30 bg-[#a78bfa]/10 text-[#a78bfa] hover:bg-[#a78bfa]/20 disabled:opacity-40 transition-colors cursor-pointer font-medium"
+          className="self-start text-[10px] px-2.5 py-1 rounded-full border border-[#534AB7]/30 bg-[#EEEDFE] text-[#534AB7] hover:bg-[#534AB7]/20 disabled:opacity-40 transition-colors cursor-pointer font-medium"
         >
           Analizar código
         </button>
@@ -195,12 +195,12 @@ export function AIPanel({ editorData, code, exerciseContext, onAiResponse, width
             onKeyDown={handleKeyDown}
             placeholder="Escribe un mensaje..."
             rows={2}
-            className="flex-1 bg-[#161622] border border-[#ffffff10] rounded-xl px-3 py-2 text-xs text-[#e5e7eb] placeholder-[#4b5563] resize-none focus:outline-none focus:border-[#6f42c1]/50 transition-all"
+            className="flex-1 bg-[#F8F9FA] border border-[#E5E7EB] rounded-xl px-3 py-2 text-xs text-[#111827] placeholder-[#9CA3AF] resize-none focus:outline-none focus:border-[#534AB7] transition-all"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || loading}
-            className="p-2 rounded-xl bg-gradient-to-br from-[#6f42c1] to-[#0e639c] hover:opacity-90 disabled:opacity-40 transition-all cursor-pointer shrink-0 shadow-lg shadow-[#6f42c1]/20"
+            className="p-2 rounded-xl bg-[#534AB7] hover:opacity-90 disabled:opacity-40 transition-all cursor-pointer shrink-0"
             aria-label="Enviar"
           >
             <Send className="w-4 h-4 text-white" />

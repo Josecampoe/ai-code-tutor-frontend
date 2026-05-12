@@ -89,6 +89,14 @@ export function EditorPage() {
     setHasAiWarning(false);
   };
 
+  // When active file is deleted from sidebar, close it in the editor
+  useEffect(() => {
+    if (fsActiveId === null && openFile) {
+      setOpenFile(null);
+      setCode('');
+    }
+  }, [fsActiveId]);
+
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('codetutor_token');
