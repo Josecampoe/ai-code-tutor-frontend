@@ -8,7 +8,6 @@ import { TerminalPanel, type TerminalLine } from '../components/editor/TerminalP
 import { AIPanel } from '../components/ai/AIPanel';
 import type { Language } from '../types';
 import type { VNode, VFile } from '../types/vfs';
-import { detectLang } from '../types/vfs';
 import { Terminal, Save } from 'lucide-react';
 
 interface StoredUser { id: number; username: string; email: string; }
