@@ -7,11 +7,14 @@ import { CodeEditor } from '../components/editor/CodeEditor';
 import { TerminalPanel, type TerminalLine } from '../components/editor/TerminalPanel';
 import { AIPanel } from '../components/ai/AIPanel';
 import type { Language } from '../types';
-import type { VNode } from '../types/vfs';
+import type { VNode, VFile } from '../types/vfs';
+import { detectLang } from '../types/vfs';
 import { Terminal, Save } from 'lucide-react';
 
 interface StoredUser { id: number; username: string; email: string; }
 interface OpenFile { name: string; content: string; language: Language; }
+
+const FS_STORAGE_KEY = 'codetutor-fs-nodes';
 
 export function EditorPage() {
   const navigate = useNavigate();
@@ -20,7 +23,12 @@ export function EditorPage() {
   const [activity, setActivity] = useState<ActivityView>('files');
   const [openFile, setOpenFile] = useState<OpenFile | null>(null);
   const [code, setCode] = useState('');
-  const [fsNodes, setFsNodes] = useState<VNode[]>([]);
+  const [fsNodes, setFsNodes] = useState<VNode[]>(() => {
+    try {
+      const saved = localStorage.getItem(FS_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [fsActiveId, setFsActiveId] = useState<string | null>(null);
   const [errorCount, setErrorCount] = useState(0);
   const [canValidate, setCanValidate] = useState(false);
@@ -60,6 +68,7 @@ export function EditorPage() {
 
   const handleSaveCode = () => {
     if (!openFile || !code.trim()) return;
+    // Save file content
     const storageKey = `saved-project-0-file-${openFile.name}`;
     localStorage.setItem(storageKey, JSON.stringify({
       fileName: openFile.name,
@@ -67,8 +76,26 @@ export function EditorPage() {
       savedAt: new Date().toISOString(),
       projectId: 0,
     }));
+    // Update the node content in fsNodes and persist
+    const updatedNodes = fsNodes.map(n =>
+      n.id === fsActiveId && n.type === 'file' ? { ...n, content: code } : n
+    );
+    setFsNodes(updatedNodes);
+    localStorage.setItem(FS_STORAGE_KEY, JSON.stringify(updatedNodes));
     setIsSaved(true);
   };
+
+  // When a file is renamed in the sidebar, update openFile if it's the active one
+  useEffect(() => {
+    if (!fsActiveId || !openFile) return;
+    const activeNode = fsNodes.find(n => n.id === fsActiveId);
+    if (activeNode && activeNode.type === 'file') {
+      const file = activeNode as VFile;
+      if (file.name !== openFile.name || file.language !== openFile.language) {
+        setOpenFile({ name: file.name, content: code, language: file.language });
+      }
+    }
+  }, [fsNodes, fsActiveId]);
 
   // Ctrl+S
   useEffect(() => {

@@ -134,8 +134,16 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
     if (activeId && toDelete.has(activeId)) setActiveId(null);
   };
 
-  const renameNode = (id: string, name: string) =>
-    setNodes(prev => prev.map(n => n.id === id ? { ...n, name } : n));
+  const renameNode = (id: string, name: string) => {
+    const lang = detectLang(name);
+    setNodes(prev => prev.map(n => {
+      if (n.id === id) {
+        if (n.type === 'file') return { ...n, name, language: lang };
+        return { ...n, name };
+      }
+      return n;
+    }));
+  };
 
   const createFile = () => {
     setCreatingFile(true);
