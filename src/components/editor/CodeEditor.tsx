@@ -120,11 +120,11 @@ export function CodeEditor({ editorData, code, onChange, onErrorCountChange }: P
 
   if (!editorData) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#0d0d14] select-none">
+      <div className="flex-1 flex items-center justify-center bg-white select-none">
         <div className="text-center">
-          <p className="text-5xl mb-4 opacity-20" style={{ color: '#585b70' }}>{'</>'}</p>
-          <p className="text-sm" style={{ color: '#585b70' }}>Abre un archivo del explorador para empezar</p>
-          <p className="text-xs mt-2" style={{ color: '#45475a' }}>Ctrl+S para guardar</p>
+          <p className="text-5xl mb-4 opacity-20 text-[#9CA3AF]">{'</>'}</p>
+          <p className="text-sm text-[#9CA3AF]">Abre un archivo del explorador para empezar</p>
+          <p className="text-xs mt-2 text-[#C4C4C4]">Ctrl+S para guardar</p>
         </div>
       </div>
     );
@@ -136,18 +136,16 @@ export function CodeEditor({ editorData, code, onChange, onErrorCountChange }: P
     <div className="flex-1 flex flex-col overflow-hidden relative">
 
       {/* Tab bar */}
-      <div className="flex items-center bg-[#080810] border-b border-[#1e1e2e] shrink-0" style={{ height: 36 }}>
+      <div className="flex items-center bg-white border-b border-[#E5E7EB] shrink-0" style={{ height: 36 }}>
         <div
-          className="flex items-center gap-2 px-4 h-full border-t-2"
-          style={{ borderColor: '#89b4fa', background: '#0d0d14' }}
+          className="flex items-center gap-2 px-4 h-full border-t-2 border-[#534AB7] bg-white"
         >
-          <span className="text-xs" style={{ color: '#cdd6f4' }}>{editorData.projectName}</span>
+          <span className="text-xs text-[#111827]">{editorData.projectName}</span>
 
           {/* Unsaved dot */}
           {hasUnsavedChanges && (
             <div
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ background: '#f9e2af' }}
+              className="w-1.5 h-1.5 rounded-full shrink-0 bg-[#F59E0B]"
               title="Cambios sin guardar"
             />
           )}
@@ -156,7 +154,7 @@ export function CodeEditor({ editorData, code, onChange, onErrorCountChange }: P
         {/* Save status */}
         <div className="ml-auto flex items-center gap-3 px-3">
           {lastSavedAt && !hasUnsavedChanges && (
-            <span className="text-[10px]" style={{ color: '#45475a' }}>
+            <span className="text-[10px] text-[#9CA3AF]">
               Guardado {lastSavedAt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
@@ -165,8 +163,7 @@ export function CodeEditor({ editorData, code, onChange, onErrorCountChange }: P
           {versionHistory.length > 0 && (
             <button
               onClick={() => setShowVersionHistory(previous => !previous)}
-              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded cursor-pointer transition-colors hover:bg-[#1e1e2e]"
-              style={{ color: '#585b70' }}
+              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded cursor-pointer transition-colors hover:bg-[#F0F1F3] text-[#9CA3AF]"
               aria-label="Ver historial de versiones"
             >
               <Clock className="w-3 h-3" />
