@@ -16,6 +16,7 @@ export function LoginPage() {
     try {
       const res = await loginUser(form);
       localStorage.setItem('user', JSON.stringify({ id: res.id, username: res.username, email: res.email }));
+      localStorage.setItem('codetutor_token', res.token);
       navigate('/');
     } catch (err) {
       setError(getErrorMessage(err));
