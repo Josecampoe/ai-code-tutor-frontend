@@ -194,7 +194,7 @@ export function CodeEditor({ editorData, code, onChange, onErrorCountChange }: P
           height="100%"
           language={monacoLanguage}
           value={code}
-          theme="vs-dark"
+          theme="vs"
           onMount={handleEditorMount}
           onChange={value => onChange(value ?? '')}
           aria-label="Editor de código"
