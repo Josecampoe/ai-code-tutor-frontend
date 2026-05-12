@@ -313,6 +313,17 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
         </div>
       </div>
 
+      {/* Always visible New Project button */}
+      <div className="px-3 py-1.5 border-b border-[#E5E7EB] shrink-0">
+        <button
+          onClick={createFolder}
+          className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 bg-[#534AB7] text-white text-[11px] font-medium rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
+        >
+          <FolderPlus className="w-3.5 h-3.5" />
+          New Project
+        </button>
+      </div>
+
       <div className="flex-1 overflow-y-auto py-1">
         {/* Empty state — prompt to create a project */}
         {roots.length === 0 && !creatingFile && !creatingFolder && (
