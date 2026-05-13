@@ -110,6 +110,7 @@ export function LearningPage() {
 
   // Load lesson for a topic
   const loadLesson = useCallback(async (topic: Topic, lang: string, level: string) => {
+    console.log('[LearningPage] Loading lesson for topic:', topic.id, topic.name, '| lang:', lang, '| level:', level);
     setIsLoadingLesson(true);
     setIsGeneratingLesson(false);
     setError(null);
@@ -120,6 +121,7 @@ export function LearningPage() {
       const lesson = await apiFetch<Lesson>(
         `/lessons/topic/${topic.id}?language=${encodeURIComponent(lang)}&level=${encodeURIComponent(level)}`
       );
+      console.log('[LearningPage] Lesson received:', JSON.stringify(lesson).substring(0, 200));
       setCurrentLesson(lesson);
     } catch {
       setError('Failed to load lesson. Please try again.');
