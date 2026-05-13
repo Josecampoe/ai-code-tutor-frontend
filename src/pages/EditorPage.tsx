@@ -50,6 +50,7 @@ export function EditorPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [loadingProject, setLoadingProject] = useState(false);
 
   const aiPanelResizerRef = useRef<HTMLDivElement>(null);
 
@@ -167,15 +168,17 @@ export function EditorPage() {
     setCode('');
     setFsActiveId(null);
     setTerminalLines([]);
+    setLoadingProject(true);
 
-    // Try to load from localStorage first
+    // Try to load from localStorage first (instant)
     const localNodes = localStorage.getItem(`codetutor-project-${project.id}-nodes`);
     let projectNodes: VNode[] = [];
 
     if (localNodes) {
       try {
-        projectNodes = JSON.parse(localNodes);
-      } catch { /* fallback to backend */ }
+        const parsed = JSON.parse(localNodes);
+        if (Array.isArray(parsed) && parsed.length > 0) projectNodes = parsed;
+      } catch { /* ignore */ }
     }
 
     // If no local data, load from backend
@@ -186,7 +189,6 @@ export function EditorPage() {
           const parsed = JSON.parse(data.currentCode ?? '');
           if (parsed.nodes) projectNodes = parsed.nodes;
         } catch {
-          // Single file fallback
           const folderId = uid();
           projectNodes = [
             { id: folderId, type: 'folder', name: project.name, parentId: null, open: true },
@@ -194,7 +196,6 @@ export function EditorPage() {
           ];
         }
       } catch {
-        // Backend failed, create empty project
         const folderId = uid();
         projectNodes = [{ id: folderId, type: 'folder', name: project.name, parentId: null, open: true }];
       }
@@ -205,6 +206,7 @@ export function EditorPage() {
     setActiveProject(project);
     localStorage.setItem(ACTIVE_PROJECT_KEY, JSON.stringify(project));
     setIsSaved(true);
+    setLoadingProject(false);
     setToast('Project loaded');
   };
 
@@ -359,7 +361,16 @@ export function EditorPage() {
             )}
 
             {/* Editor */}
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden relative">
+              {loadingProject && (
+                <div className="absolute inset-0 z-10 bg-white/80 flex flex-col items-center justify-center">
+                  <svg className="w-8 h-8 animate-spin text-[#534AB7] mb-3" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
+                  </svg>
+                  <p className="text-[13px] text-[#4B5563]">Loading project...</p>
+                </div>
+              )}
               <CodeEditor
                 editorData={editorData}
                 code={code}
