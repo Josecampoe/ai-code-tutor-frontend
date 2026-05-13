@@ -6,6 +6,7 @@ import { FilesSidebar } from '../components/sidebar/FilesSidebar';
 import { CodeEditor } from '../components/editor/CodeEditor';
 import { TerminalPanel, type TerminalLine } from '../components/editor/TerminalPanel';
 import { AIPanel } from '../components/ai/AIPanel';
+import { createProject, saveSnapshot } from '../services/api';
 import type { Language } from '../types';
 import type { VNode, VFile } from '../types/vfs';
 import { Terminal, Save } from 'lucide-react';
@@ -38,6 +39,15 @@ export function EditorPage() {
   const [aiPanelWidth, setAiPanelWidth] = useState(288);
   const [isSaved, setIsSaved] = useState(false);
   const [isResizingAiPanel, setIsResizingAiPanel] = useState(false);
+  const [savingToBackend, setSavingToBackend] = useState(false);
+  const [saveCount, setSaveCount] = useState(0);
+  // Maps folder id -> backend project id
+  const [projectIds, setProjectIds] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('codetutor-project-ids');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
   const aiPanelResizerRef = useRef<HTMLDivElement>(null);
 
   // Warn before closing if there is unsaved code
@@ -65,23 +75,66 @@ export function EditorPage() {
     return defaultContent;
   };
 
-  const handleSaveCode = () => {
-    if (!openFile || !code.trim()) return;
-    // Save file content
-    const storageKey = `saved-project-0-file-${openFile.name}`;
-    localStorage.setItem(storageKey, JSON.stringify({
-      fileName: openFile.name,
-      fileContent: code,
-      savedAt: new Date().toISOString(),
-      projectId: 0,
-    }));
-    // Update the node content in fsNodes and persist
+  const handleSaveCode = async () => {
+    if (!openFile || !code.trim() || savingToBackend) return;
+
+    // 1. Save locally
     const updatedNodes = fsNodes.map(n =>
       n.id === fsActiveId && n.type === 'file' ? { ...n, content: code } : n
     );
     setFsNodes(updatedNodes);
     localStorage.setItem(FS_STORAGE_KEY, JSON.stringify(updatedNodes));
+
+    // 2. Save to backend
+    setSavingToBackend(true);
+    try {
+      // Find the parent folder (project) of the active file
+      const activeNode = fsNodes.find(n => n.id === fsActiveId);
+      let projectFolderId: string | null = null;
+      if (activeNode) {
+        // Walk up to find root folder
+        let current = activeNode;
+        while (current.parentId) {
+          const parent = fsNodes.find(n => n.id === current.parentId);
+          if (!parent) break;
+          current = parent;
+        }
+        if (current.type === 'folder') projectFolderId = current.id;
+      }
+
+      if (projectFolderId) {
+        let backendProjectId = projectIds[projectFolderId];
+
+        // If project doesn't exist in backend, create it
+        if (!backendProjectId) {
+          const folder = fsNodes.find(n => n.id === projectFolderId);
+          const project = await createProject({
+            name: folder?.name ?? 'Untitled',
+            description: 'Project created from editor',
+            programmingLanguage: openFile.language,
+            userId: user.id,
+          });
+          backendProjectId = project.id;
+          const updated = { ...projectIds, [projectFolderId]: backendProjectId };
+          setProjectIds(updated);
+          localStorage.setItem('codetutor-project-ids', JSON.stringify(updated));
+        }
+
+        // Save snapshot
+        await saveSnapshot({
+          content: code,
+          versionLabel: openFile.name,
+          projectId: backendProjectId,
+        });
+      }
+    } catch (err) {
+      console.error('Error saving to backend:', err);
+    } finally {
+      setSavingToBackend(false);
+    }
+
     setIsSaved(true);
+    setSaveCount(prev => prev + 1);
   };
 
   // When a file is renamed in the sidebar, update openFile if it's the active one
@@ -175,6 +228,7 @@ export function EditorPage() {
               activeId={fsActiveId}
               setActiveId={setFsActiveId}
               onOpenFile={handleOpenFile}
+              refreshTrigger={saveCount}
             />
           )}
           {activity === 'settings' && (

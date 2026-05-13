@@ -114,9 +114,10 @@ interface Props {
   activeId: string | null;
   setActiveId: React.Dispatch<React.SetStateAction<string | null>>;
   onOpenFile: (name: string, content: string, language: Language) => void;
+  refreshTrigger?: number;
 }
 
-export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, onOpenFile }: Props) {
+export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, onOpenFile, refreshTrigger }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [newFileName, setNewFileName] = useState('');
@@ -129,11 +130,12 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   const newFileInputRef = useRef<HTMLInputElement>(null);
   const newFolderInputRef = useRef<HTMLInputElement>(null);
 
+  // Load projects on open or when refreshTrigger changes
   useEffect(() => {
-    if (projectsOpen && projects.length === 0) {
+    if (projectsOpen) {
       getProjectsByUser(userId).then(setProjects).catch(() => {});
     }
-  }, [projectsOpen, userId, projects.length]);
+  }, [projectsOpen, userId, refreshTrigger]);
 
   const hasProject = nodes.some(n => n.type === 'folder' && n.parentId === null);
 
