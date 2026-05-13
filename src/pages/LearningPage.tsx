@@ -26,8 +26,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
 function formatCategoryName(category: string): string {
   const names: Record<string, string> = {
+    LANGUAGE: 'Languages',
     DATA_STRUCTURE: 'Data Structures',
     DESIGN_PATTERN: 'Design Patterns',
+    OOP: 'OOP',
     ALGORITHM: 'Algorithms',
   };
   return names[category] ?? category;
@@ -35,8 +37,10 @@ function formatCategoryName(category: string): string {
 
 function getCategoryIcon(category: string): string {
   const icons: Record<string, string> = {
+    LANGUAGE: 'code',
     DATA_STRUCTURE: 'binary-tree',
     DESIGN_PATTERN: 'puzzle',
+    OOP: 'cube',
     ALGORITHM: 'arrow-shuffle',
   };
   return icons[category] ?? 'code';
