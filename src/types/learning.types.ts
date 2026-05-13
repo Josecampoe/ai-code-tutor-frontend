@@ -33,6 +33,7 @@ export interface Lesson {
   summary: string;
   estimatedMinutes: number;
   sections: LessonSection[];
+  contentJson?: string;
 }
 
 export interface LearningState {
