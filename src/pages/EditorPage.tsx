@@ -10,7 +10,7 @@ import { AIPanel } from '../components/ai/AIPanel';
 import { createProject, saveSnapshot, getProjectsByUser, loadEditor } from '../services/api';
 import type { Language, Project } from '../types';
 import type { VNode, VFile } from '../types/vfs';
-import { uid, detectLang } from '../types/vfs';
+import { uid } from '../types/vfs';
 import { Terminal, Save, FolderPlus } from 'lucide-react';
 
 interface StoredUser { id: number; username: string; email: string; }
