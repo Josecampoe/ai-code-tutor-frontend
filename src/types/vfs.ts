@@ -9,7 +9,7 @@ export function detectLang(name: string): Language {
   if (name.endsWith('.py')) return 'python';
   if (name.endsWith('.java')) return 'java';
   if (name.endsWith('.ts') || name.endsWith('.tsx')) return 'typescript';
-  if (name.endsWith('.cpp') || name.endsWith('.h')) return 'cpp';
+  if (name.endsWith('.cpp') || name.endsWith('.h') || name.endsWith('.c')) return 'cpp';
   if (name.endsWith('.js') || name.endsWith('.jsx')) return 'javascript';
-  return 'javascript'; // fallback solo si tiene extensión js explícita
+  return 'plaintext';
 }

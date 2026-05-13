@@ -1,5 +1,5 @@
 // ─── Lenguajes soportados ─────────────────────────────────────────────────────
-export type Language = 'javascript' | 'python' | 'java' | 'typescript' | 'cpp';
+export type Language = 'javascript' | 'python' | 'java' | 'typescript' | 'cpp' | 'plaintext';
 
 // ─── Entidades del backend ────────────────────────────────────────────────────
 export interface User {
