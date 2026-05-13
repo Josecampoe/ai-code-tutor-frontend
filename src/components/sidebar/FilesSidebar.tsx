@@ -117,9 +117,12 @@ interface Props {
   refreshTrigger?: number;
   onNewProject?: (name: string) => void;
   onLoadProject?: (nodes: VNode[], projectId: number) => void;
+  onDeleteProject?: (projectId: number) => void;
+  savedProjects?: Project[];
+  activeProjectId?: number | null;
 }
 
-export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, onOpenFile, refreshTrigger, onNewProject, onLoadProject }: Props) {
+export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, onOpenFile, refreshTrigger, onNewProject, onLoadProject, onDeleteProject, savedProjects: externalProjects, activeProjectId }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [newFileName, setNewFileName] = useState('');
@@ -415,23 +418,42 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
         ))}
       </div>
 
-      {/* Backend projects */}
+      {/* Saved projects */}
       <div className="border-t border-[#E5E7EB] shrink-0">
         <button onClick={() => setProjectsOpen(o => !o)}
           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#9CA3AF] hover:text-[#111827] cursor-pointer">
           {projectsOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
           <span className="uppercase tracking-widest font-semibold">Saved Projects</span>
+          {(externalProjects ?? projects).length > 0 && (
+            <span className="ml-auto text-[10px] bg-[#F0F1F3] text-[#9CA3AF] px-1.5 py-0.5 rounded-full">
+              {(externalProjects ?? projects).length}
+            </span>
+          )}
         </button>
         {projectsOpen && (
-          <div className="max-h-40 overflow-y-auto pb-1">
-            {projects.length === 0 && <p className="text-xs text-[#9CA3AF] px-4 py-2">No saved projects.</p>}
-            {projects.map(p => (
-              <button key={p.id} onClick={() => handleLoadProject(p)}
-                className="w-full flex items-center gap-2 px-4 py-1.5 text-xs text-[#111827] hover:bg-[#F0F1F3] text-left cursor-pointer">
-                <Folder className="w-3.5 h-3.5 text-[#D97706]" />
-                <span className="truncate">{p.name}</span>
-              </button>
-            ))}
+          <div className="max-h-48 overflow-y-auto pb-1">
+            {(externalProjects ?? projects).length === 0 && <p className="text-xs text-[#9CA3AF] px-4 py-2">No saved projects.</p>}
+            {(externalProjects ?? projects).map(p => {
+              const isActive = activeProjectId === p.id;
+              return (
+                <div key={p.id}
+                  className={`group flex items-center gap-2 px-4 py-1.5 text-xs cursor-pointer ${isActive ? 'bg-[#EEEDFE] border-l-2 border-[#534AB7] text-[#534AB7]' : 'text-[#111827] hover:bg-[#F0F1F3]'}`}
+                  onClick={() => !isActive && handleLoadProject(p)}
+                >
+                  <Folder className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#534AB7]' : 'text-[#D97706]'}`} />
+                  <span className="truncate flex-1">{p.name}</span>
+                  {!isActive && onDeleteProject && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onDeleteProject(p.id); }}
+                      className="hidden group-hover:block text-[#9CA3AF] hover:text-[#EF4444] cursor-pointer shrink-0"
+                      title="Delete project"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

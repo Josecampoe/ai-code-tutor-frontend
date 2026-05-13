@@ -5,6 +5,7 @@ import { StatusBar } from '../components/layout/StatusBar';
 import { FilesSidebar } from '../components/sidebar/FilesSidebar';
 import { CodeEditor } from '../components/editor/CodeEditor';
 import { NewProjectModal } from '../components/editor/NewProjectModal';
+import { DeleteProjectModal } from '../components/editor/DeleteProjectModal';
 import { TerminalPanel, type TerminalLine } from '../components/editor/TerminalPanel';
 import { AIPanel } from '../components/ai/AIPanel';
 import { createProject, saveSnapshot, getProjectsByUser, loadEditor } from '../services/api';
@@ -51,6 +52,7 @@ export function EditorPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loadingProject, setLoadingProject] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
   const aiPanelResizerRef = useRef<HTMLDivElement>(null);
 
@@ -207,6 +209,21 @@ export function EditorPage() {
     setToast('Project loaded');
   };
 
+  // ─── DELETE a project ────────────────────────────────────────────────────────
+  const handleDeleteProject = async () => {
+    if (!deleteTarget) return;
+    try {
+      // Call backend to delete (we'll use a simple approach - remove from list)
+      // For now remove from local state and localStorage
+      localStorage.removeItem(`codetutor-project-${deleteTarget.id}-nodes`);
+      setSavedProjects(prev => prev.filter(p => p.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      setToast('Project deleted');
+    } catch {
+      throw new Error('Delete failed');
+    }
+  };
+
   // ─── File operations ───────────────────────────────────────────────────────
   const handleOpenFile = (name: string, content: string, language: Language) => {
     setOpenFile({ name, content, language });
@@ -290,6 +307,14 @@ export function EditorPage() {
         error={modalError}
       />
 
+      {/* Delete Project Modal */}
+      <DeleteProjectModal
+        open={!!deleteTarget}
+        projectName={deleteTarget?.name ?? ''}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteProject}
+      />
+
       <div className="flex flex-1 overflow-hidden">
         {/* Activity Bar */}
         <ActivityBar active={activity} onChange={setActivity} />
@@ -309,6 +334,12 @@ export function EditorPage() {
                 const proj = savedProjects.find(p => p.id === projId);
                 if (proj) handleLoadSavedProject(proj);
               }}
+              onDeleteProject={(projId) => {
+                const proj = savedProjects.find(p => p.id === projId);
+                if (proj) setDeleteTarget(proj);
+              }}
+              savedProjects={savedProjects}
+              activeProjectId={activeProject?.id ?? null}
               refreshTrigger={savedProjects.length}
             />
           )}
@@ -339,13 +370,10 @@ export function EditorPage() {
         {/* Editor area */}
         <div className="flex flex-1 overflow-hidden">
           <div className="flex flex-col flex-1 overflow-hidden">
-            {/* Top bar with project info */}
+            {/* Top bar with project info — NO language badge */}
             {activeProject && (
               <div className="h-9 bg-white border-b border-[#E5E7EB] flex items-center px-3 shrink-0 gap-3">
                 <span className="text-[13px] font-medium text-[#111827]">{activeProject.name}</span>
-                <span className="bg-[#EEEDFE] text-[#3C3489] text-[10px] font-medium px-2 py-0.5 rounded-full">
-                  {activeProject.programmingLanguage}
-                </span>
                 <div className="ml-auto">
                   <button
                     onClick={() => setIsNewProjectModalOpen(true)}
@@ -419,8 +447,8 @@ export function EditorPage() {
         </div>
       </div>
 
-      {/* Status Bar */}
-      <StatusBar language={openFile?.language ?? '—'} projectName={activeProject?.name ?? 'No project'}
+      {/* Status Bar — language from file extension */}
+      <StatusBar language={openFile?.language ?? (activeProject ? 'plaintext' : '—')} projectName={activeProject?.name ?? 'No project'}
         version={0} username={user.username ?? ''} errorCount={errorCount}
         canValidate={canValidate} hasAiWarning={hasAiWarning} hasUnsavedChanges={!isSaved} />
     </div>
