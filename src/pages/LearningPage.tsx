@@ -23,6 +23,24 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+function formatCategoryName(category: string): string {
+  const names: Record<string, string> = {
+    DATA_STRUCTURE: 'Data Structures',
+    DESIGN_PATTERN: 'Design Patterns',
+    ALGORITHM: 'Algorithms',
+  };
+  return names[category] ?? category;
+}
+
+function getCategoryIcon(category: string): string {
+  const icons: Record<string, string> = {
+    DATA_STRUCTURE: 'binary-tree',
+    DESIGN_PATTERN: 'puzzle',
+    ALGORITHM: 'arrow-shuffle',
+  };
+  return icons[category] ?? 'code';
+}
+
 export function LearningPage() {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -48,8 +66,33 @@ export function LearningPage() {
 
   // Load categories and progress on mount
   useEffect(() => {
-    apiFetch<Category[]>('/topics')
-      .then(cats => {
+    // Load topics and group by category
+    apiFetch<Array<{ id: number; name: string; category: string; description: string; difficulty: string }>>('/topics')
+      .then(topics => {
+        // Group topics by category string
+        const categoryMap = new Map<string, Category>();
+        topics.forEach(t => {
+          if (!categoryMap.has(t.category)) {
+            categoryMap.set(t.category, {
+              id: t.category,
+              name: formatCategoryName(t.category),
+              icon: getCategoryIcon(t.category),
+              topicCount: 0,
+              topics: [],
+            });
+          }
+          const cat = categoryMap.get(t.category)!;
+          cat.topics.push({
+            id: String(t.id),
+            categoryId: t.category,
+            name: t.name,
+            description: t.description,
+            level: t.difficulty.toLowerCase() as 'beginner' | 'intermediate' | 'advanced',
+            orderIndex: cat.topics.length,
+          });
+          cat.topicCount = cat.topics.length;
+        });
+        const cats = Array.from(categoryMap.values());
         setCategories(cats);
         if (cats.length > 0) setOpenCategories([cats[0].id]);
       })
