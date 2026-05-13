@@ -184,15 +184,10 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
     setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, parentId: targetFolderId } : n));
   };
 
-  // Create file — if no project exists, force creating a folder first
+  // Create file inside the current project
   const createFile = (parentId?: string) => {
-    if (!hasProject && !parentId) {
-      // Force create project folder first
-      setCreatingFolder(true);
-      setNewFolderName('');
-      setTimeout(() => newFolderInputRef.current?.focus(), 0);
-      return;
-    }
+    // If no project exists, can't create files
+    if (!hasProject && !parentId) return;
     setCreatingFile(true);
     setCreatingFileParent(parentId ?? null);
     setNewFileName('');
@@ -209,9 +204,9 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   };
 
   const confirmCreateFile = () => {
-    const name = newFileName.trim() || 'newFile.js';
+    const name = newFileName.trim();
+    if (!name) { setCreatingFile(false); setNewFileName(''); setCreatingFileParent(null); return; }
     const lang = detectLang(name);
-    // If no parent specified but projects exist, put inside first project folder
     let parentId = creatingFileParent;
     if (!parentId && hasProject) {
       const firstFolder = nodes.find(n => n.type === 'folder' && n.parentId === null);
@@ -233,8 +228,8 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   };
 
   const confirmCreateFolder = () => {
-    const name = newFolderName.trim() || 'new-folder';
-    // Create subfolder inside the current project (first root folder)
+    const name = newFolderName.trim();
+    if (!name) { setCreatingFolder(false); setNewFolderName(''); return; }
     const rootFolder = nodes.find(n => n.type === 'folder' && n.parentId === null);
     const parentId = rootFolder?.id ?? null;
     const node: VFolder = { id: uid(), type: 'folder', name, parentId, open: true };
@@ -381,9 +376,9 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
             <Folder className="w-4 h-4 text-[#D97706] shrink-0" />
             <input ref={newFolderInputRef} value={newFolderName}
               onChange={e => setNewFolderName(e.target.value)}
-              onBlur={() => { if (newFolderName.trim()) confirmCreateFolder(); else setCreatingFolder(false); }}
-              onKeyDown={e => { if (e.key === 'Enter') confirmCreateFolder(); if (e.key === 'Escape') setCreatingFolder(false); }}
-              placeholder="project-name"
+              onBlur={() => confirmCreateFolder()}
+              onKeyDown={e => { if (e.key === 'Enter') confirmCreateFolder(); if (e.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); } }}
+              placeholder="folder name"
               className="flex-1 bg-[#F8F9FA] border border-[#534AB7] rounded px-1 text-xs text-[#111827] outline-none" />
           </div>
         )}
@@ -394,9 +389,9 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
             <File className="w-4 h-4 text-[#534AB7] shrink-0" />
             <input ref={newFileInputRef} value={newFileName}
               onChange={e => setNewFileName(e.target.value)}
-              onBlur={() => { if (newFileName.trim()) confirmCreateFile(); else setCreatingFile(false); }}
-              onKeyDown={e => { if (e.key === 'Enter') confirmCreateFile(); if (e.key === 'Escape') setCreatingFile(false); }}
-              placeholder="filename.js"
+              onBlur={() => confirmCreateFile()}
+              onKeyDown={e => { if (e.key === 'Enter') confirmCreateFile(); if (e.key === 'Escape') { setCreatingFile(false); setNewFileName(''); } }}
+              placeholder="filename.py"
               className="flex-1 bg-[#F8F9FA] border border-[#534AB7] rounded px-1 text-xs text-[#111827] outline-none" />
           </div>
         )}
