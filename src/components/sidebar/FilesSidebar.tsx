@@ -115,9 +115,11 @@ interface Props {
   setActiveId: React.Dispatch<React.SetStateAction<string | null>>;
   onOpenFile: (name: string, content: string, language: Language) => void;
   refreshTrigger?: number;
+  onNewProject?: (name: string) => void;
+  onLoadProject?: (nodes: VNode[], projectId: number) => void;
 }
 
-export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, onOpenFile, refreshTrigger }: Props) {
+export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, onOpenFile, refreshTrigger, onNewProject, onLoadProject }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [newFileName, setNewFileName] = useState('');
@@ -232,8 +234,12 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
 
   const confirmCreateFolder = () => {
     const name = newFolderName.trim() || 'new-project';
-    const node: VFolder = { id: uid(), type: 'folder', name, parentId: null, open: true };
-    setNodes(prev => [...prev, node]);
+    if (onNewProject) {
+      onNewProject(name);
+    } else {
+      const node: VFolder = { id: uid(), type: 'folder', name, parentId: null, open: true };
+      setNodes(prev => [...prev, node]);
+    }
     setCreatingFolder(false);
     setNewFolderName('');
   };
@@ -283,13 +289,28 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   const handleLoadProject = async (p: Project) => {
     try {
       const data = await loadEditor(p.id);
-      // Create a project folder with the file inside
-      const folderId = uid();
-      const folder: VFolder = { id: folderId, type: 'folder', name: p.name, parentId: null, open: true };
-      const file: VFile = { id: uid(), type: 'file', name: p.name + '.' + data.language, content: data.currentCode ?? '', language: data.language, parentId: folderId };
-      setNodes(prev => [...prev, folder, file]);
-      setActiveId(file.id);
-      onOpenFile(file.name, file.content, data.language);
+      // Try to parse the snapshot as a full project (JSON with nodes)
+      let projectNodes: VNode[] = [];
+      try {
+        const parsed = JSON.parse(data.currentCode ?? '');
+        if (parsed.nodes && Array.isArray(parsed.nodes)) {
+          projectNodes = parsed.nodes;
+        }
+      } catch {
+        // Fallback: single file project
+        const folderId = uid();
+        const fileNode: VFile = { id: uid(), type: 'file', name: p.name + '.' + data.language, content: data.currentCode ?? '', language: data.language, parentId: folderId };
+        projectNodes = [
+          { id: folderId, type: 'folder', name: p.name, parentId: null, open: true },
+          fileNode,
+        ];
+      }
+
+      if (onLoadProject) {
+        onLoadProject(projectNodes, p.id);
+      } else {
+        setNodes(projectNodes);
+      }
     } catch (err) { console.error(getErrorMessage(err)); }
   };
 

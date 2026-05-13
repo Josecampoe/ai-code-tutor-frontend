@@ -6,7 +6,7 @@ import { FilesSidebar } from '../components/sidebar/FilesSidebar';
 import { CodeEditor } from '../components/editor/CodeEditor';
 import { TerminalPanel, type TerminalLine } from '../components/editor/TerminalPanel';
 import { AIPanel } from '../components/ai/AIPanel';
-import { createProject, saveSnapshot } from '../services/api';
+import { createProject, saveSnapshot, getProjectsByUser } from '../services/api';
 import type { Language } from '../types';
 import type { VNode, VFile } from '../types/vfs';
 import { Terminal, Save } from 'lucide-react';
@@ -15,6 +15,7 @@ interface StoredUser { id: number; username: string; email: string; }
 interface OpenFile { name: string; content: string; language: Language; }
 
 const FS_STORAGE_KEY = 'codetutor-fs-nodes';
+const PROJECT_ID_KEY = 'codetutor-active-project-id';
 
 export function EditorPage() {
   const navigate = useNavigate();
@@ -37,16 +38,14 @@ export function EditorPage() {
   const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([]);
   const [terminalRunning, setTerminalRunning] = useState(false);
   const [aiPanelWidth, setAiPanelWidth] = useState(288);
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(true);
   const [isResizingAiPanel, setIsResizingAiPanel] = useState(false);
   const [savingToBackend, setSavingToBackend] = useState(false);
   const [saveCount, setSaveCount] = useState(0);
-  // Maps folder id -> backend project id
-  const [projectIds, setProjectIds] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem('codetutor-project-ids');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  // Backend project ID for the current active project
+  const [backendProjectId, setBackendProjectId] = useState<number | null>(() => {
+    const saved = localStorage.getItem(PROJECT_ID_KEY);
+    return saved ? Number(saved) : null;
   });
   const aiPanelResizerRef = useRef<HTMLDivElement>(null);
 
@@ -62,71 +61,51 @@ export function EditorPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [code, isSaved]);
 
-  // Load saved content from localStorage for a given file
-  const loadSavedContent = (fileName: string, defaultContent: string): string => {
-    const storageKey = `saved-project-0-file-${fileName}`;
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.fileContent ?? defaultContent;
-      } catch { /* ignore */ }
-    }
-    return defaultContent;
-  };
-
+  // ─── SAVE: saves all files to backend ───────────────────────────────────────
   const handleSaveCode = async () => {
-    if (!openFile || !code.trim() || savingToBackend) return;
-
-    // 1. Save locally
+    if (savingToBackend) return;
+    
+    // Update active file content in nodes
     const updatedNodes = fsNodes.map(n =>
       n.id === fsActiveId && n.type === 'file' ? { ...n, content: code } : n
     );
     setFsNodes(updatedNodes);
     localStorage.setItem(FS_STORAGE_KEY, JSON.stringify(updatedNodes));
 
-    // 2. Save to backend
+    // Find the root project folder
+    const projectFolder = updatedNodes.find(n => n.type === 'folder' && n.parentId === null);
+    if (!projectFolder) { setIsSaved(true); return; }
+
     setSavingToBackend(true);
     try {
-      // Find the parent folder (project) of the active file
-      const activeNode = fsNodes.find(n => n.id === fsActiveId);
-      let projectFolderId: string | null = null;
-      if (activeNode) {
-        // Walk up to find root folder
-        let current = activeNode;
-        while (current.parentId) {
-          const parent = fsNodes.find(n => n.id === current.parentId);
-          if (!parent) break;
-          current = parent;
-        }
-        if (current.type === 'folder') projectFolderId = current.id;
-      }
+      let projId = backendProjectId;
 
-      if (projectFolderId) {
-        let backendProjectId = projectIds[projectFolderId];
-
-        // If project doesn't exist in backend, create it
-        if (!backendProjectId) {
-          const folder = fsNodes.find(n => n.id === projectFolderId);
-          const project = await createProject({
-            name: folder?.name ?? 'Untitled',
-            description: 'Project created from editor',
-            programmingLanguage: openFile.language,
-            userId: user.id,
-          });
-          backendProjectId = project.id;
-          const updated = { ...projectIds, [projectFolderId]: backendProjectId };
-          setProjectIds(updated);
-          localStorage.setItem('codetutor-project-ids', JSON.stringify(updated));
-        }
-
-        // Save snapshot
-        await saveSnapshot({
-          content: code,
-          versionLabel: openFile.name,
-          projectId: backendProjectId,
+      // Create project in backend if it doesn't exist
+      if (!projId) {
+        const lang = openFile?.language ?? 'javascript';
+        const project = await createProject({
+          name: projectFolder.name,
+          description: 'Project created from editor',
+          programmingLanguage: lang,
+          userId: user.id,
         });
+        projId = project.id;
+        setBackendProjectId(projId);
+        localStorage.setItem(PROJECT_ID_KEY, String(projId));
       }
+
+      // Collect all file contents into a single snapshot (JSON with all files)
+      const allFiles = updatedNodes
+        .filter(n => n.type === 'file')
+        .map(n => ({ name: (n as VFile).name, content: (n as VFile).content, language: (n as VFile).language, parentId: n.parentId }));
+
+      await saveSnapshot({
+        content: JSON.stringify({ files: allFiles, nodes: updatedNodes }),
+        versionLabel: `Save - ${new Date().toLocaleTimeString()}`,
+        projectId: projId,
+      });
+
+      setSaveCount(prev => prev + 1);
     } catch (err) {
       console.error('Error saving to backend:', err);
     } finally {
@@ -134,10 +113,49 @@ export function EditorPage() {
     }
 
     setIsSaved(true);
-    setSaveCount(prev => prev + 1);
   };
 
-  // When a file is renamed in the sidebar, update openFile if it's the active one
+  // ─── NEW PROJECT: save current, clear, start fresh ──────────────────────────
+  const handleNewProject = async (projectName: string) => {
+    // Save current project first if there's content
+    if (fsNodes.length > 0 && !isSaved) {
+      await handleSaveCode();
+    }
+
+    // Clear editor state
+    setOpenFile(null);
+    setCode('');
+    setFsActiveId(null);
+    setBackendProjectId(null);
+    localStorage.removeItem(PROJECT_ID_KEY);
+
+    // Create new empty project with just the folder
+    const { uid } = await import('../types/vfs');
+    const folderId = uid();
+    const newNodes: VNode[] = [{ id: folderId, type: 'folder', name: projectName, parentId: null, open: true }];
+    setFsNodes(newNodes);
+    localStorage.setItem(FS_STORAGE_KEY, JSON.stringify(newNodes));
+    setIsSaved(true);
+  };
+
+  // ─── LOAD PROJECT from Saved Projects ───────────────────────────────────────
+  const handleLoadSavedProject = async (nodes: VNode[], projId: number) => {
+    // Save current first
+    if (fsNodes.length > 0 && !isSaved) {
+      await handleSaveCode();
+    }
+
+    setFsNodes(nodes);
+    localStorage.setItem(FS_STORAGE_KEY, JSON.stringify(nodes));
+    setBackendProjectId(projId);
+    localStorage.setItem(PROJECT_ID_KEY, String(projId));
+    setOpenFile(null);
+    setCode('');
+    setFsActiveId(null);
+    setIsSaved(true);
+  };
+
+  // When a file is renamed in the sidebar, update openFile
   useEffect(() => {
     if (!fsActiveId || !openFile) return;
     const activeNode = fsNodes.find(n => n.id === fsActiveId);
@@ -156,12 +174,11 @@ export function EditorPage() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [openFile, code]);
+  }, [openFile, code, fsNodes, fsActiveId, backendProjectId]);
 
   const handleOpenFile = (name: string, content: string, language: Language) => {
-    const restoredContent = loadSavedContent(name, content);
-    setOpenFile({ name, content: restoredContent, language });
-    setCode(restoredContent);
+    setOpenFile({ name, content, language });
+    setCode(content);
     setIsSaved(true);
     setErrorCount(0);
     setCanValidate(false);
@@ -205,7 +222,7 @@ export function EditorPage() {
   }, [aiPanelWidth]);
 
   const editorData = openFile ? {
-    projectId: 0,
+    projectId: backendProjectId ?? 0,
     projectName: openFile.name,
     language: openFile.language,
     currentCode: openFile.content,
@@ -229,6 +246,8 @@ export function EditorPage() {
               setActiveId={setFsActiveId}
               onOpenFile={handleOpenFile}
               refreshTrigger={saveCount}
+              onNewProject={handleNewProject}
+              onLoadProject={handleLoadSavedProject}
             />
           )}
           {activity === 'settings' && (
@@ -286,15 +305,14 @@ export function EditorPage() {
                   <Terminal className="w-3.5 h-3.5" /> Console
                 </button>
 
-                {openFile && code.trim() && (
-                  <button
-                    onClick={handleSaveCode}
-                    className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-[#E5E7EB] text-[#534AB7] hover:bg-[#EEEDFE] cursor-pointer transition-colors"
-                    aria-label="Save code"
-                  >
-                    <Save className="w-3 h-3" /> Save
-                  </button>
-                )}
+                <button
+                  onClick={handleSaveCode}
+                  disabled={savingToBackend}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border border-[#E5E7EB] text-[#534AB7] hover:bg-[#EEEDFE] cursor-pointer transition-colors disabled:opacity-50"
+                  aria-label="Save code"
+                >
+                  <Save className="w-3 h-3" /> {savingToBackend ? 'Saving...' : 'Save'}
+                </button>
               </div>
             )}
 
@@ -316,7 +334,6 @@ export function EditorPage() {
 
           {/* AI Panel */}
           <>
-            {/* Resizer */}
             <div
               ref={aiPanelResizerRef}
               onMouseDown={handleAiPanelResizerMouseDown}
@@ -354,7 +371,7 @@ export function EditorPage() {
         errorCount={errorCount}
         canValidate={canValidate}
         hasAiWarning={hasAiWarning}
-        hasUnsavedChanges={!!openFile && !isSaved}
+        hasUnsavedChanges={!isSaved}
       />
     </div>
   );
