@@ -120,7 +120,7 @@ export function EditorPage() {
       // Step 2: Create new project in backend
       const newProject = await createProject({
         name,
-        description: '',
+        description: name,
         programmingLanguage: 'javascript',
         userId: user.id,
       });
