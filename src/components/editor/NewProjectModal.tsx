@@ -1,24 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import type { Language } from '../../types';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreate: (name: string, language: Language) => void;
+  onCreate: (name: string) => void;
   loading: boolean;
   error: string | null;
 }
 
 export function NewProjectModal({ open, onClose, onCreate, loading, error }: Props) {
   const [name, setName] = useState('');
-  const [language, setLanguage] = useState<Language>('javascript');
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
       setName('');
-      setLanguage('javascript');
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -28,11 +25,11 @@ export function NewProjectModal({ open, onClose, onCreate, loading, error }: Pro
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === 'Enter' && name.trim()) onCreate(name.trim(), language);
+      if (e.key === 'Enter' && name.trim()) onCreate(name.trim());
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, name, language, onClose, onCreate]);
+  }, [open, name, onClose, onCreate]);
 
   if (!open) return null;
 
@@ -72,7 +69,7 @@ export function NewProjectModal({ open, onClose, onCreate, loading, error }: Pro
         )}
 
         {/* Project name */}
-        <div className="mb-4">
+        <div className="mb-5">
           <label htmlFor="project-name" className="block text-[12px] font-medium text-[#111827] mb-1.5">
             Project name
           </label>
@@ -87,25 +84,6 @@ export function NewProjectModal({ open, onClose, onCreate, loading, error }: Pro
           />
         </div>
 
-        {/* Language */}
-        <div className="mb-5">
-          <label htmlFor="project-language" className="block text-[12px] font-medium text-[#111827] mb-1.5">
-            Language
-          </label>
-          <select
-            id="project-language"
-            value={language}
-            onChange={e => setLanguage(e.target.value as Language)}
-            className="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-[13px] text-[#111827] outline-none focus:border-[#534AB7] transition-colors bg-white cursor-pointer"
-          >
-            <option value="javascript">JavaScript</option>
-            <option value="typescript">TypeScript</option>
-            <option value="python">Python</option>
-            <option value="java">Java</option>
-            <option value="cpp">C++</option>
-          </select>
-        </div>
-
         {/* Buttons */}
         <div className="flex gap-2">
           <button
@@ -115,7 +93,7 @@ export function NewProjectModal({ open, onClose, onCreate, loading, error }: Pro
             Cancel
           </button>
           <button
-            onClick={() => { if (name.trim()) onCreate(name.trim(), language); }}
+            onClick={() => { if (name.trim()) onCreate(name.trim()); }}
             disabled={!name.trim() || loading}
             className="flex-1 bg-[#534AB7] text-white py-2 rounded-lg text-[13px] font-medium hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >

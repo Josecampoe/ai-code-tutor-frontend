@@ -107,7 +107,7 @@ export function EditorPage() {
   };
 
   // ─── CREATE new project ────────────────────────────────────────────────────
-  const handleCreateProject = async (name: string, language: Language) => {
+  const handleCreateProject = async (name: string) => {
     setModalLoading(true);
     setModalError(null);
 
@@ -121,7 +121,7 @@ export function EditorPage() {
       const newProject = await createProject({
         name,
         description: '',
-        programmingLanguage: language,
+        programmingLanguage: 'javascript',
         userId: user.id,
       });
 
