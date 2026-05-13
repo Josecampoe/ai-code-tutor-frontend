@@ -233,13 +233,12 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
   };
 
   const confirmCreateFolder = () => {
-    const name = newFolderName.trim() || 'new-project';
-    if (onNewProject) {
-      onNewProject(name);
-    } else {
-      const node: VFolder = { id: uid(), type: 'folder', name, parentId: null, open: true };
-      setNodes(prev => [...prev, node]);
-    }
+    const name = newFolderName.trim() || 'new-folder';
+    // Create subfolder inside the current project (first root folder)
+    const rootFolder = nodes.find(n => n.type === 'folder' && n.parentId === null);
+    const parentId = rootFolder?.id ?? null;
+    const node: VFolder = { id: uid(), type: 'folder', name, parentId, open: true };
+    setNodes(prev => [...prev, node]);
     setCreatingFolder(false);
     setNewFolderName('');
   };
@@ -346,14 +345,14 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
           <button onClick={() => folderInputRef.current?.click()} title="Import folder" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FolderInput className="w-3.5 h-3.5" /></button>
           <div className="w-px h-3 bg-[#E5E7EB]" />
           <button onClick={() => createFile()} title="New file" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FilePlus className="w-3.5 h-3.5" /></button>
-          <button onClick={() => createFolder()} title="New project folder" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FolderPlus className="w-3.5 h-3.5" /></button>
+          <button onClick={() => createFolder()} title="New folder" className="text-[#9CA3AF] hover:text-[#111827] cursor-pointer"><FolderPlus className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
       {/* Always visible New Project button */}
       <div className="px-3 py-1.5 border-b border-[#E5E7EB] shrink-0">
         <button
-          onClick={() => onNewProject ? onNewProject('') : createFolder()}
+          onClick={() => { if (onNewProject) onNewProject(''); }}
           className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 bg-[#534AB7] text-white text-[11px] font-medium rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
         >
           <FolderPlus className="w-3.5 h-3.5" />
@@ -368,7 +367,7 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
             <FolderPlus className="w-8 h-8 text-[#E5E7EB] mx-auto mb-2" />
             <p className="text-xs text-[#9CA3AF]">Create a project to start</p>
             <button
-              onClick={() => onNewProject ? onNewProject('') : createFolder()}
+              onClick={() => { if (onNewProject) onNewProject(''); }}
               className="mt-3 px-3 py-1.5 bg-[#534AB7] text-white text-xs rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
             >
               + New Project
