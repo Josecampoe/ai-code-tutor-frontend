@@ -3,6 +3,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { EditorPage } from './pages/EditorPage';
+import { LearningPage } from './pages/LearningPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = localStorage.getItem('user');
@@ -23,12 +24,7 @@ export default function App() {
         } />
         <Route path="/learning" element={
           <ProtectedRoute>
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-              <div className="text-center">
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">Learning Mode</h1>
-                <p className="text-gray-600">Coming soon...</p>
-              </div>
-            </div>
+            <LearningPage />
           </ProtectedRoute>
         } />
         <Route path="/about" element={
