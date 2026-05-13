@@ -353,7 +353,7 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
       {/* Always visible New Project button */}
       <div className="px-3 py-1.5 border-b border-[#E5E7EB] shrink-0">
         <button
-          onClick={createFolder}
+          onClick={() => onNewProject ? onNewProject('') : createFolder()}
           className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 bg-[#534AB7] text-white text-[11px] font-medium rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
         >
           <FolderPlus className="w-3.5 h-3.5" />
@@ -366,9 +366,9 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
         {roots.length === 0 && !creatingFile && !creatingFolder && (
           <div className="px-4 py-6 text-center">
             <FolderPlus className="w-8 h-8 text-[#E5E7EB] mx-auto mb-2" />
-            <p className="text-xs text-[#9CA3AF]">Create a project folder to start</p>
+            <p className="text-xs text-[#9CA3AF]">Create a project to start</p>
             <button
-              onClick={createFolder}
+              onClick={() => onNewProject ? onNewProject('') : createFolder()}
               className="mt-3 px-3 py-1.5 bg-[#534AB7] text-white text-xs rounded-lg hover:opacity-90 transition-opacity cursor-pointer"
             >
               + New Project
