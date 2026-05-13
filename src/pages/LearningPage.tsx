@@ -6,6 +6,7 @@ import { StepProgress } from '../components/learning/StepProgress';
 import { SectionCard } from '../components/learning/SectionCard';
 import { BottomNav } from '../components/learning/BottomNav';
 import { CompletionModal } from '../components/learning/CompletionModal';
+import { LanguageLearningView } from '../components/learning/LanguageLearningView';
 import type { Category, Topic, Lesson } from '../types/learning.types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api';
@@ -227,6 +228,11 @@ export function LearningPage() {
     else if (allTopics.length > 0) handleTopicSelect(allTopics[0]);
   };
 
+  // Detect if selected topic is from Languages category
+  const isLanguageTopic = selectedTopic ? categories.some(c =>
+    c.name === 'Languages' && c.topics.some(t => t.id === selectedTopic.id)
+  ) : false;
+
   return (
     <div className="h-screen flex overflow-hidden bg-white">
       {/* Sidebar */}
@@ -244,6 +250,16 @@ export function LearningPage() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Language Learning View (for Languages category) */}
+        {isLanguageTopic && selectedTopic ? (
+          <LanguageLearningView
+            topic={selectedTopic}
+            selectedLevel={selectedLevel}
+            onPracticeClick={handlePracticeClick}
+            completedLessons={[]}
+          />
+        ) : (
+        <>
         {/* Lesson Hero */}
         {currentLesson && selectedTopic && (
           <LessonHero
@@ -333,6 +349,8 @@ export function LearningPage() {
             onNext={handleNext}
             onComplete={handleComplete}
           />
+        )}
+        </>
         )}
       </div>
 
