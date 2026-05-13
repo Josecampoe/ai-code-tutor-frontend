@@ -1,4 +1,5 @@
 import { Files, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export type ActivityView = 'files' | 'settings';
 
@@ -25,10 +26,12 @@ const items: {
 ];
 
 export function ActivityBar({ active, onChange }: Props) {
+  const navigate = useNavigate();
+
   return (
     <div className="flex flex-col items-center w-14 bg-[#F0F1F3] border-r border-[#E5E7EB] py-3 gap-1 shrink-0">
-      {/* Logo top */}
-      <div className="w-8 h-8 rounded-lg bg-[#534AB7] flex items-center justify-center mb-4">
+      {/* Logo top — click to go home */}
+      <div onClick={() => navigate('/')} className="w-8 h-8 rounded-lg bg-[#534AB7] flex items-center justify-center mb-4 cursor-pointer hover:opacity-90 transition-opacity">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
       </div>
 

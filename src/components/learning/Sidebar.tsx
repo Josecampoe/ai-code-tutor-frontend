@@ -9,6 +9,7 @@ interface Props {
   onTopicSelect: (topic: Topic) => void;
   onCategoryToggle: (categoryId: string) => void;
   onSearchChange: (query: string) => void;
+  onHomeClick: () => void;
 }
 
 const CATEGORY_STYLES: Record<string, { bg: string; icon: string; iconColor: string }> = {
@@ -23,7 +24,7 @@ function getStyle(name: string) {
   return CATEGORY_STYLES[name] ?? { bg: 'bg-[#F0F1F3]', icon: 'M12 2v20M2 12h20', iconColor: '#9CA3AF' };
 }
 
-export function Sidebar({ categories, selectedTopic, completedTopics, openCategories, searchQuery, onTopicSelect, onCategoryToggle, onSearchChange }: Props) {
+export function Sidebar({ categories, selectedTopic, completedTopics, openCategories, searchQuery, onTopicSelect, onCategoryToggle, onSearchChange, onHomeClick }: Props) {
   const query = searchQuery.toLowerCase();
 
   const filteredCategories = categories.map(cat => {
@@ -38,6 +39,12 @@ export function Sidebar({ categories, selectedTopic, completedTopics, openCatego
     <div className="w-[260px] h-full flex flex-col bg-[#F9FAFB] border-r border-[#E5E7EB] shrink-0">
       {/* Header */}
       <div className="p-4 border-b border-[#E5E7EB] shrink-0">
+        <div className="flex items-center gap-2 mb-3 cursor-pointer" onClick={onHomeClick}>
+          <div className="w-7 h-7 bg-[#534AB7] rounded-[6px] flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <span className="text-[13px] font-medium text-[#111827]">AICodeTutor</span>
+        </div>
         <h2 className="text-[13px] font-medium text-[#111827] mb-3">Courses</h2>
         <div className="flex items-center gap-2 bg-white border border-[#E5E7EB] rounded-lg px-[10px] py-[7px]">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

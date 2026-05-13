@@ -196,6 +196,7 @@ export function LearningPage() {
         onTopicSelect={handleTopicSelect}
         onCategoryToggle={handleCategoryToggle}
         onSearchChange={setSearchQuery}
+        onHomeClick={() => navigate('/')}
       />
 
       {/* Main content */}
