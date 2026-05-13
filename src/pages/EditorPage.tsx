@@ -362,6 +362,10 @@ export function EditorPage() {
                   className="w-full flex items-center justify-center gap-2 py-2 text-xs text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors cursor-pointer">
                   Sign out
                 </button>
+                <button onClick={() => navigate('/')}
+                  className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#534AB7] border border-[#EEEDFE] rounded-xl hover:bg-[#EEEDFE] transition-colors cursor-pointer">
+                  ← Back to home
+                </button>
               </div>
             </div>
           )}
