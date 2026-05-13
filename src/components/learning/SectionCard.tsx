@@ -21,7 +21,6 @@ const TYPE_CONFIG: Record<string, { bg: string; text: string; label: string; ico
 export function SectionCard({ section, index, currentIndex, onHintReveal, revealedHints, onOpenInEditor, language }: Props) {
   const [copied, setCopied] = useState(false);
 
-  const isDone = index < currentIndex;
   const isCurrent = index === currentIndex;
   const isLocked = index > currentIndex;
   const config = TYPE_CONFIG[section.type] ?? TYPE_CONFIG.explanation;
