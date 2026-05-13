@@ -139,6 +139,18 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
     }
   }, [projectsOpen, userId, refreshTrigger]);
 
+  // Reset creation states when nodes change completely (new project loaded)
+  const prevNodesLenRef = useRef(nodes.length);
+  useEffect(() => {
+    if (nodes.length === 1 && prevNodesLenRef.current > 1) {
+      setCreatingFile(false);
+      setCreatingFolder(false);
+      setNewFileName('');
+      setNewFolderName('');
+    }
+    prevNodesLenRef.current = nodes.length;
+  }, [nodes.length]);
+
   const hasProject = nodes.some(n => n.type === 'folder' && n.parentId === null);
 
   const openFile = (node: VFile) => {
@@ -376,7 +388,7 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
             <Folder className="w-4 h-4 text-[#D97706] shrink-0" />
             <input ref={newFolderInputRef} value={newFolderName}
               onChange={e => setNewFolderName(e.target.value)}
-              onBlur={() => confirmCreateFolder()}
+              onBlur={() => { setCreatingFolder(false); setNewFolderName(''); }}
               onKeyDown={e => { if (e.key === 'Enter') confirmCreateFolder(); if (e.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); } }}
               placeholder="folder name"
               className="flex-1 bg-[#F8F9FA] border border-[#534AB7] rounded px-1 text-xs text-[#111827] outline-none" />
@@ -389,7 +401,7 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
             <File className="w-4 h-4 text-[#534AB7] shrink-0" />
             <input ref={newFileInputRef} value={newFileName}
               onChange={e => setNewFileName(e.target.value)}
-              onBlur={() => confirmCreateFile()}
+              onBlur={() => { setCreatingFile(false); setNewFileName(''); setCreatingFileParent(null); }}
               onKeyDown={e => { if (e.key === 'Enter') confirmCreateFile(); if (e.key === 'Escape') { setCreatingFile(false); setNewFileName(''); } }}
               placeholder="filename.py"
               className="flex-1 bg-[#F8F9FA] border border-[#534AB7] rounded px-1 text-xs text-[#111827] outline-none" />
