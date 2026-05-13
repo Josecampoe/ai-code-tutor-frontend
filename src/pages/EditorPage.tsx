@@ -105,6 +105,9 @@ export function EditorPage() {
         projectId: projId,
       });
 
+      // Also save nodes locally for quick restore
+      localStorage.setItem(`codetutor-project-${projId}-nodes`, JSON.stringify(updatedNodes));
+
       setSaveCount(prev => prev + 1);
     } catch (err) {
       console.error('Error saving to backend:', err);
@@ -116,10 +119,10 @@ export function EditorPage() {
   };
 
   // ─── NEW PROJECT: save current, clear, start fresh ──────────────────────────
-  const handleNewProject = async (projectName: string) => {
-    // Save current project first if there's content
-    if (fsNodes.length > 0 && !isSaved) {
-      await handleSaveCode();
+  const handleNewProject = (projectName: string) => {
+    // Save current project to localStorage before switching
+    if (fsNodes.length > 0 && backendProjectId) {
+      localStorage.setItem(`codetutor-project-${backendProjectId}-nodes`, JSON.stringify(fsNodes));
     }
 
     // Clear editor state
@@ -130,8 +133,7 @@ export function EditorPage() {
     localStorage.removeItem(PROJECT_ID_KEY);
 
     // Create new empty project with just the folder
-    const { uid } = await import('../types/vfs');
-    const folderId = uid();
+    const folderId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const newNodes: VNode[] = [{ id: folderId, type: 'folder', name: projectName, parentId: null, open: true }];
     setFsNodes(newNodes);
     localStorage.setItem(FS_STORAGE_KEY, JSON.stringify(newNodes));
@@ -139,10 +141,10 @@ export function EditorPage() {
   };
 
   // ─── LOAD PROJECT from Saved Projects ───────────────────────────────────────
-  const handleLoadSavedProject = async (nodes: VNode[], projId: number) => {
-    // Save current first
-    if (fsNodes.length > 0 && !isSaved) {
-      await handleSaveCode();
+  const handleLoadSavedProject = (nodes: VNode[], projId: number) => {
+    // Save current project nodes before switching
+    if (fsNodes.length > 0 && backendProjectId) {
+      localStorage.setItem(`codetutor-project-${backendProjectId}-nodes`, JSON.stringify(fsNodes));
     }
 
     setFsNodes(nodes);

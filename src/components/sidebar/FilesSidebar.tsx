@@ -288,8 +288,22 @@ export function FilesSidebar({ userId, nodes, setNodes, activeId, setActiveId, o
 
   const handleLoadProject = async (p: Project) => {
     try {
+      // First try to load from localStorage (has full node structure)
+      const localNodes = localStorage.getItem(`codetutor-project-${p.id}-nodes`);
+      if (localNodes) {
+        const parsed = JSON.parse(localNodes);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (onLoadProject) {
+            onLoadProject(parsed, p.id);
+          } else {
+            setNodes(parsed);
+          }
+          return;
+        }
+      }
+
+      // Fallback: load from backend
       const data = await loadEditor(p.id);
-      // Try to parse the snapshot as a full project (JSON with nodes)
       let projectNodes: VNode[] = [];
       try {
         const parsed = JSON.parse(data.currentCode ?? '');
