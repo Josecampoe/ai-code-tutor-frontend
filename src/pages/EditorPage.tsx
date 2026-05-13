@@ -187,18 +187,15 @@ export function EditorPage() {
         const data = await loadEditor(project.id);
         try {
           const parsed = JSON.parse(data.currentCode ?? '');
-          if (parsed.nodes) projectNodes = parsed.nodes;
-        } catch {
-          const folderId = uid();
-          projectNodes = [
-            { id: folderId, type: 'folder', name: project.name, parentId: null, open: true },
-            { id: uid(), type: 'file', name: project.name + '.' + project.programmingLanguage, content: data.currentCode ?? '', language: project.programmingLanguage, parentId: folderId },
-          ];
-        }
-      } catch {
-        const folderId = uid();
-        projectNodes = [{ id: folderId, type: 'folder', name: project.name, parentId: null, open: true }];
-      }
+          if (parsed.nodes && Array.isArray(parsed.nodes)) projectNodes = parsed.nodes;
+        } catch { /* not JSON, ignore */ }
+      } catch { /* backend failed */ }
+    }
+
+    // If still empty, just create the folder
+    if (projectNodes.length === 0) {
+      const folderId = uid();
+      projectNodes = [{ id: folderId, type: 'folder', name: project.name, parentId: null, open: true }];
     }
 
     setFsNodes(projectNodes);
