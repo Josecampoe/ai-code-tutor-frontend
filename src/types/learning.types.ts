@@ -1,3 +1,5 @@
+export type Level = 'beginner' | 'intermediate' | 'advanced';
+
 export interface Category {
   id: string;
   name: string;
@@ -11,7 +13,7 @@ export interface Topic {
   categoryId: string;
   name: string;
   description: string;
-  level: 'beginner' | 'intermediate' | 'advanced';
+  level: Level;
   orderIndex: number;
 }
 
@@ -26,25 +28,20 @@ export interface LessonSection {
 
 export interface Lesson {
   id: string;
-  topicId: string;
+  topicId?: string;
   language: string;
   level: string;
   title: string;
   summary: string;
   estimatedMinutes: number;
-  sections: LessonSection[];
-  contentJson?: string;
+  contentJson: string;
 }
 
-export interface LearningState {
-  categories: Category[];
-  selectedTopic: Topic | null;
-  selectedLanguage: string;
-  selectedLevel: 'beginner' | 'intermediate' | 'advanced';
-  currentLesson: Lesson | null;
-  currentSectionIndex: number;
-  completedTopics: string[];
-  isLoadingLesson: boolean;
-  isGeneratingLesson: boolean;
-  openCategories: string[];
+export function parseSections(lesson: Lesson): LessonSection[] {
+  try {
+    const parsed = JSON.parse(lesson.contentJson);
+    return parsed.sections ?? [];
+  } catch {
+    return [];
+  }
 }

@@ -1,23 +1,22 @@
-export function getCachedLesson(topicId: string, language: string, level: string): unknown | null {
-  const key = `lesson_${topicId}_${language}_${level}`;
-  const cached = localStorage.getItem(key);
-  if (!cached) return null;
+import type { Lesson } from '../types/learning.types';
+
+const PREFIX = 'aict_lesson_';
+
+export function getCachedLesson(topicId: string, language: string, level: string): Lesson | null {
   try {
-    return JSON.parse(cached);
+    const raw = localStorage.getItem(`${PREFIX}${topicId}_${language}_${level}`);
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
-export function setCachedLesson(topicId: string, language: string, level: string, lesson: unknown): void {
-  const key = `lesson_${topicId}_${language}_${level}`;
+export function setCachedLesson(topicId: string, language: string, level: string, lesson: Lesson): void {
   try {
-    localStorage.setItem(key, JSON.stringify(lesson));
-  } catch { /* storage full */ }
+    localStorage.setItem(`${PREFIX}${topicId}_${language}_${level}`, JSON.stringify(lesson));
+  } catch {}
 }
 
 export function clearLessonCache(): void {
-  Object.keys(localStorage)
-    .filter(k => k.startsWith('lesson_'))
-    .forEach(k => localStorage.removeItem(k));
+  Object.keys(localStorage).filter(k => k.startsWith(PREFIX)).forEach(k => localStorage.removeItem(k));
 }
