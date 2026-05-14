@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getCachedLesson, setCachedLesson } from '../utils/lessonCache';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api';
 
@@ -37,6 +38,8 @@ interface LessonData {
   level: string;
 }
 
+const LANGUAGE_OPTIONS = ['Java', 'Python', 'JavaScript', 'TypeScript', 'C++', 'Kotlin'];
+
 export function LearningPage() {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -55,8 +58,11 @@ export function LearningPage() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [revealedHints, setRevealedHints] = useState<Record<number, number>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
+  const [pendingTopic, setPendingTopic] = useState<TopicItem | null>(null);
 
   const getToken = () => localStorage.getItem('codetutor_token');
+
 
   const categoryNameMap: Record<string, string> = {
     LANGUAGE: 'Languages',
@@ -114,6 +120,15 @@ export function LearningPage() {
   };
 
   const loadLesson = useCallback(async (topic: TopicItem, lang: string, level: string) => {
+    const cached = getCachedLesson(topic.id, lang, level);
+    if (cached) {
+      setCurrentLesson(cached as LessonData);
+      setCurrentSectionIndex(0);
+      setRevealedHints({});
+      setIsBookmarked(false);
+      return;
+    }
+
     setIsLoadingLesson(true);
     setIsGeneratingLesson(false);
     const timeout = setTimeout(() => setIsGeneratingLesson(true), 2000);
@@ -125,6 +140,7 @@ export function LearningPage() {
       );
       if (!res.ok) throw new Error('Failed');
       const lesson: LessonData = await res.json();
+      setCachedLesson(topic.id, lang, level, lesson);
       setCurrentLesson(lesson);
       setCurrentSectionIndex(0);
       setRevealedHints({});
@@ -139,9 +155,25 @@ export function LearningPage() {
   }, []);
 
   const handleTopicSelect = useCallback((topic: TopicItem) => {
-    setSelectedTopic(topic);
-    loadLesson(topic, selectedLanguage, selectedLevel);
-  }, [selectedLanguage, selectedLevel, loadLesson]);
+    if (topic.categoryId === 'LANGUAGE') {
+      const lang = topic.name.replace(/\s+Basics$/i, '').replace(/\s+Advanced$/i, '').replace(/\s+Intermediate$/i, '').trim();
+      setSelectedLanguage(lang);
+      setSelectedTopic(topic);
+      loadLesson(topic, lang, selectedLevel);
+    } else {
+      setPendingTopic(topic);
+      setIsLanguageModalOpen(true);
+    }
+  }, [selectedLevel, loadLesson]);
+
+  const handleLanguageModalConfirm = useCallback(() => {
+    setIsLanguageModalOpen(false);
+    if (pendingTopic) {
+      setSelectedTopic(pendingTopic);
+      loadLesson(pendingTopic, selectedLanguage, selectedLevel);
+      setPendingTopic(null);
+    }
+  }, [pendingTopic, selectedLanguage, selectedLevel, loadLesson]);
 
   const handleCategoryToggle = (categoryId: string) => {
     setOpenCategories(prev =>
@@ -202,6 +234,17 @@ export function LearningPage() {
     navigate(`/practice?exercisePrompt=${encodeURIComponent(prompt)}&language=${encodeURIComponent(selectedLanguage)}`);
   };
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isLanguageModalOpen) {
+        setIsLanguageModalOpen(false);
+        setPendingTopic(null);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isLanguageModalOpen]);
+
   const filteredCategories = categories.map(cat => ({
     ...cat,
     topics: cat.topics.filter(t =>
@@ -213,6 +256,9 @@ export function LearningPage() {
   const progressPercent = totalTopics > 0 ? Math.round((completedTopics.length / totalTopics) * 100) : 0;
 
   const sections: LessonSection[] = currentLesson ? parseSections(currentLesson) : [];
+
+  const isLanguageTopic = selectedTopic?.categoryId === 'LANGUAGE';
+
 
   return (
     <div className="h-screen flex overflow-hidden bg-white">
@@ -307,32 +353,27 @@ export function LearningPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <select
-              value={selectedLanguage}
-              onChange={e => {
-                setSelectedLanguage(e.target.value);
-                if (selectedTopic) loadLesson(selectedTopic, e.target.value, selectedLevel);
-              }}
-              className="text-[12px] px-2 py-1 border border-[#E5E7EB] rounded bg-white cursor-pointer"
-            >
-              <option value="Java">Java</option>
-              <option value="Python">Python</option>
-              <option value="JavaScript">JavaScript</option>
-              <option value="TypeScript">TypeScript</option>
-              <option value="C++">C++</option>
-            </select>
-            <select
-              value={selectedLevel}
-              onChange={e => {
-                setSelectedLevel(e.target.value);
-                if (selectedTopic) loadLesson(selectedTopic, selectedLanguage, e.target.value);
-              }}
-              className="text-[12px] px-2 py-1 border border-[#E5E7EB] rounded bg-white cursor-pointer"
-            >
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-            </select>
+            {selectedTopic && !isLanguageTopic && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[12px] text-[#374151] px-2 py-1 bg-[#F3F4F6] rounded-full">
+                  Examples in: {selectedLanguage}
+                </span>
+                <button
+                  onClick={() => {
+                    setPendingTopic(selectedTopic);
+                    setIsLanguageModalOpen(true);
+                  }}
+                  className="p-1 rounded hover:bg-[#F3F4F6] cursor-pointer"
+                  title="Change language"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2">
+                    <polyline points="1 4 1 10 7 10" />
+                    <polyline points="23 20 23 14 17 14" />
+                    <path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15" />
+                  </svg>
+                </button>
+              </div>
+            )}
             <button
               onClick={() => setIsBookmarked(prev => !prev)}
               className="p-1.5 rounded hover:bg-[#F3F4F6] cursor-pointer"
@@ -344,232 +385,3 @@ export function LearningPage() {
             </button>
           </div>
         </div>
-
-        {/* Scrollable content */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-5">
-          {/* Empty state */}
-          {!selectedTopic && !isLoadingLesson && (
-            <div className="h-full flex flex-col items-center justify-center text-center">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" className="mb-3">
-                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-              </svg>
-              <p className="text-[14px] font-medium text-[#6B7280]">Choose a topic to start learning</p>
-              <p className="text-[12px] text-[#9CA3AF] mt-1">Select from the sidebar to load a lesson</p>
-            </div>
-          )}
-
-          {/* Loading state */}
-          {isLoadingLesson && (
-            <div className="space-y-4">
-              <div className="h-24 bg-[#F3F4F6] rounded-lg animate-pulse" />
-              <div className="h-32 bg-[#F3F4F6] rounded-lg animate-pulse" />
-              <div className="h-20 bg-[#F3F4F6] rounded-lg animate-pulse" />
-            </div>
-          )}
-
-          {/* Lesson content */}
-          {currentLesson && !isLoadingLesson && (
-            <div className="space-y-4">
-              {/* Lesson header */}
-              <div className="mb-4">
-                <h1 className="text-[18px] font-semibold text-[#111827]">{currentLesson.title}</h1>
-                <p className="text-[13px] text-[#6B7280] mt-1">{currentLesson.summary}</p>
-                <div className="flex items-center gap-3 mt-2">
-                  <span className="text-[11px] text-[#9CA3AF]">{currentLesson.estimatedMinutes} min</span>
-                  <span className="text-[11px] text-[#9CA3AF]">{currentLesson.language}</span>
-                  <span className="text-[11px] px-1.5 py-0.5 bg-[#F3F4F6] rounded text-[#6B7280] capitalize">{currentLesson.level}</span>
-                </div>
-              </div>
-
-              {/* Step indicators */}
-              <div className="flex items-center gap-1 mb-4">
-                {sections.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentSectionIndex(i)}
-                    className={`h-1.5 flex-1 rounded-full cursor-pointer transition-colors ${
-                      i === currentSectionIndex ? 'bg-[#534AB7]' : i < currentSectionIndex ? 'bg-[#A5B4FC]' : 'bg-[#E5E7EB]'
-                    }`}
-                  />
-                ))}
-              </div>
-
-              {/* Current section */}
-              {sections[currentSectionIndex] && (
-                <SectionRenderer
-                  section={sections[currentSectionIndex]}
-                  sectionIndex={currentSectionIndex}
-                  revealedHints={revealedHints}
-                  onCopyCode={handleCopyCode}
-                  onHintReveal={handleHintReveal}
-                  onOpenInEditor={handleOpenInEditor}
-                />
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Bottom nav */}
-        {currentLesson && !isLoadingLesson && (
-          <div className="h-[52px] bg-white border-t border-[#E5E7EB] px-5 flex items-center justify-between shrink-0">
-            <button
-              onClick={handlePrevious}
-              disabled={currentSectionIndex === 0}
-              className="px-3 py-1.5 text-[12px] font-medium text-[#374151] border border-[#E5E7EB] rounded-md hover:bg-[#F9FAFB] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            >
-              Previous
-            </button>
-            <span className="text-[11px] text-[#9CA3AF]">
-              {currentSectionIndex + 1} / {sections.length}
-            </span>
-            {currentSectionIndex < sections.length - 1 ? (
-              <button
-                onClick={handleNext}
-                className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#534AB7] rounded-md hover:bg-[#4338CA] cursor-pointer"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                onClick={handleComplete}
-                className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#10B981] rounded-md hover:bg-[#059669] cursor-pointer"
-              >
-                Complete
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Completion modal */}
-      {isCompletionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setIsCompletionModalOpen(false)} />
-          <div className="relative w-[360px] bg-white rounded-xl p-6 shadow-xl text-center">
-            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#D1FAE5] flex items-center justify-center">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <h3 className="text-[16px] font-semibold text-[#111827] mb-1">Lesson Complete!</h3>
-            <p className="text-[13px] text-[#6B7280] mb-4">Great work finishing this lesson.</p>
-            <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#FAEEDA] rounded-full mb-5">
-              <span className="text-[12px] font-medium text-[#854F0B]">+25 XP</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setIsCompletionModalOpen(false)}
-                className="flex-1 px-3 py-2 text-[12px] font-medium border border-[#E5E7EB] rounded-lg hover:bg-[#F9FAFB] cursor-pointer"
-              >
-                Close
-              </button>
-              <button
-                onClick={handleNextLesson}
-                className="flex-1 px-3 py-2 text-[12px] font-medium text-white bg-[#534AB7] rounded-lg hover:bg-[#4338CA] cursor-pointer"
-              >
-                Next Lesson
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SectionRenderer({
-  section,
-  sectionIndex,
-  revealedHints,
-  onCopyCode,
-  onHintReveal,
-  onOpenInEditor,
-}: {
-  section: LessonSection;
-  sectionIndex: number;
-  revealedHints: Record<number, number>;
-  onCopyCode: (code: string) => void;
-  onHintReveal: (sectionIndex: number) => void;
-  onOpenInEditor: (prompt: string) => void;
-}) {
-  if (section.type === 'explanation') {
-    return (
-      <div className="bg-white border border-[#E5E7EB] rounded-lg p-4">
-        <h3 className="text-[14px] font-medium text-[#111827] mb-2">{section.title}</h3>
-        <p className="text-[13px] text-[#374151] leading-relaxed whitespace-pre-wrap">{section.content}</p>
-      </div>
-    );
-  }
-
-  if (section.type === 'example') {
-    return (
-      <div className="bg-white border border-[#E5E7EB] rounded-lg p-4">
-        <h3 className="text-[14px] font-medium text-[#111827] mb-2">{section.title}</h3>
-        {section.content && (
-          <p className="text-[13px] text-[#374151] leading-relaxed mb-3">{section.content}</p>
-        )}
-        {section.code && (
-          <div className="relative bg-[#1E1E2E] rounded-lg p-3">
-            <button
-              onClick={() => onCopyCode(section.code!)}
-              className="absolute top-2 right-2 p-1 rounded hover:bg-white/10 cursor-pointer"
-              title="Copy code"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A6E3A1" strokeWidth="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-              </svg>
-            </button>
-            <pre className="font-mono text-[12px] text-[#A6E3A1] overflow-x-auto whitespace-pre">{section.code}</pre>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (section.type === 'tip') {
-    return (
-      <div className="bg-[#FAEEDA] border-l-[3px] border-l-[#854F0B] rounded-r-lg p-3">
-        <h3 className="text-[13px] font-medium text-[#854F0B] mb-1">{section.title}</h3>
-        <p className="text-[12px] text-[#78350F] leading-relaxed">{section.content}</p>
-      </div>
-    );
-  }
-
-  if (section.type === 'exercise') {
-    const hintsRevealed = revealedHints[sectionIndex] || 0;
-    const hints = section.hints || [];
-    return (
-      <div className="bg-white border border-[#E5E7EB] rounded-lg p-4">
-        <h3 className="text-[14px] font-medium text-[#111827] mb-2">{section.title}</h3>
-        {section.prompt && (
-          <p className="text-[13px] text-[#374151] leading-relaxed mb-3">{section.prompt}</p>
-        )}
-        {hints.slice(0, hintsRevealed).map((hint, i) => (
-          <div key={i} className="mb-2 px-3 py-2 bg-[#F9FAFB] border border-[#E5E7EB] rounded text-[12px] text-[#374151]">
-            <span className="font-medium text-[#6B7280]">Hint {i + 1}:</span> {hint}
-          </div>
-        ))}
-        <div className="flex items-center gap-2 mt-3">
-          <button
-            onClick={() => section.prompt && onOpenInEditor(section.prompt)}
-            className="px-3 py-1.5 text-[12px] font-medium text-white bg-[#534AB7] rounded-md hover:bg-[#4338CA] cursor-pointer"
-          >
-            Open in editor
-          </button>
-          {hintsRevealed < hints.length && (
-            <button
-              onClick={() => onHintReveal(sectionIndex)}
-              className="px-3 py-1.5 text-[12px] font-medium text-[#534AB7] border border-[#534AB7] rounded-md hover:bg-[#EEEDFE] cursor-pointer"
-            >
-              Show hint
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return null;
-}
