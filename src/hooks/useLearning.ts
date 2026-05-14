@@ -39,12 +39,16 @@ export function useLearning() {
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const [pendingTopic, setPendingTopic] = useState<Topic | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
+  const [topicsError, setTopicsError] = useState(false);
 
   const token = () => localStorage.getItem('codetutor_token');
 
-  useEffect(() => {
+  const fetchTopics = useCallback(() => {
+    setIsLoadingTopics(true);
+    setTopicsError(false);
     fetch(`${API_BASE}/topics`, { headers: { Authorization: `Bearer ${token()}` } })
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then((data: Array<{ id: number; name: string; category: string; description: string; difficulty: string }>) => {
         const map = new Map<string, Category>();
         data.forEach((t, i) => {
@@ -56,9 +60,13 @@ export function useLearning() {
         const cats = Array.from(map.values());
         setCategories(cats);
         if (cats.length > 0) setOpenCategories([cats[0].id]);
+        setTopicsError(false);
       })
-      .catch(() => {});
+      .catch(() => setTopicsError(true))
+      .finally(() => setIsLoadingTopics(false));
   }, []);
+
+  useEffect(() => { fetchTopics(); }, [fetchTopics]);
 
   const loadLesson = useCallback(async (topic: Topic, lang: string, level: Level) => {
     const cached = getCachedLesson(topic.id, lang, level);
@@ -181,6 +189,7 @@ export function useLearning() {
     selectedLevel, completedLevels, completedTopics, inProgressTopics, openCategories,
     isLoadingLesson, isGeneratingLesson, isCompletionModalOpen, isBookmarked,
     revealedHints, searchQuery, isLanguageModalOpen, pendingTopic, toast, sections, scrollRef,
+    isLoadingTopics, topicsError, fetchTopics,
     handleTopicSelect, handleLanguageModalConfirm, handleLanguageModalCancel, handleCategoryToggle,
     handlePrevious, handleNext, handleComplete, handleNextLesson, handleLevelChange,
     handleBookmarkToggle,

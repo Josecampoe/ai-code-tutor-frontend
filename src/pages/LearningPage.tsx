@@ -17,7 +17,7 @@ export function LearningPage() {
     handleCategoryToggle, handlePrevious, handleNext, handleComplete,
     handleNextLesson, handleLevelChange, handleBookmarkToggle,
     handleHintReveal, handleOpenInEditor, handleSearchChange,
-    handleStepClick, setIsCompletionModalOpen,
+    handleStepClick, setIsCompletionModalOpen, isLoadingTopics, topicsError, fetchTopics,
   } = useLearning();
 
   const isLanguageTopic = selectedTopic?.categoryId === 'LANGUAGE';
@@ -33,9 +33,12 @@ export function LearningPage() {
         inProgressTopics={inProgressTopics}
         openCategories={openCategories}
         searchQuery={searchQuery}
+        isLoadingTopics={isLoadingTopics}
+        topicsError={topicsError}
         onTopicSelect={handleTopicSelect}
         onCategoryToggle={handleCategoryToggle}
         onSearchChange={handleSearchChange}
+        onRetry={fetchTopics}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
