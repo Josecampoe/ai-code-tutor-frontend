@@ -16,7 +16,7 @@ interface Props {
   isBookmarked: boolean;
   isGeneratingLesson: boolean;
   revealedHints: Record<number, number>;
-  scrollRef: RefObject<HTMLDivElement>;
+  scrollRef: RefObject<HTMLDivElement | null>;
   onPrevious: () => void;
   onNext: () => void;
   onComplete: () => void;
