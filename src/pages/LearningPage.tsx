@@ -57,7 +57,7 @@ export function LearningPage() {
   const [currentLesson, setCurrentLesson] = useState<LessonData | null>(null);
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState('Java');
-  const [selectedLevel, setSelectedLevel] = useState('beginner');
+  const [selectedLevel] = useState('beginner');
   const [completedTopics, setCompletedTopics] = useState<string[]>([]);
   const [openCategories, setOpenCategories] = useState<string[]>([]);
   const [isLoadingLesson, setIsLoadingLesson] = useState(false);
