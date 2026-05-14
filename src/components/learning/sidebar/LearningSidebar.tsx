@@ -15,9 +15,13 @@ interface Props {
 }
 
 export function LearningSidebar({ categories, selectedTopicId, completedTopics, inProgressTopics, openCategories, searchQuery, onTopicSelect, onCategoryToggle, onSearchChange }: Props) {
-  const filtered = categories
-    .map(c => ({ ...c, topics: c.topics.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())) }))
-    .filter(c => c.topics.length > 0);
+  const q = searchQuery.toLowerCase().trim();
+
+  const visibleCategories: Category[] = q
+    ? categories
+        .map(c => ({ ...c, topics: c.topics.filter(t => t.name.toLowerCase().includes(q)) }))
+        .filter(c => c.topics.length > 0)
+    : categories;
 
   const total = categories.reduce((s, c) => s + c.topics.length, 0);
 
@@ -32,16 +36,17 @@ export function LearningSidebar({ categories, selectedTopicId, completedTopics, 
           onChange={e => onSearchChange(e.target.value)}
           className="w-full px-2.5 py-1.5 text-[12px] bg-white border border-[#E5E7EB] rounded-lg outline-none focus:border-[#534AB7]"
         />
-        {searchQuery && filtered.length === 0 && (
+        {q && visibleCategories.length === 0 && (
           <p className="text-[11px] text-[#9CA3AF] mt-2">No results found</p>
         )}
       </div>
+
       <div className="flex-1 overflow-y-auto p-2">
-        {filtered.map(cat => (
+        {visibleCategories.map(cat => (
           <CategoryItem
             key={cat.id}
             category={cat}
-            isOpen={openCategories.includes(cat.id)}
+            isOpen={q ? true : openCategories.includes(cat.id)}
             selectedTopicId={selectedTopicId}
             completedTopics={completedTopics}
             inProgressTopics={inProgressTopics}
@@ -50,6 +55,7 @@ export function LearningSidebar({ categories, selectedTopicId, completedTopics, 
           />
         ))}
       </div>
+
       <SidebarFooter completed={completedTopics.length} total={total} />
     </div>
   );

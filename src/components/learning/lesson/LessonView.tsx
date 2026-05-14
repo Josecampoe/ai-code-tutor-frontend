@@ -17,6 +17,8 @@ interface Props {
   isGeneratingLesson: boolean;
   revealedHints: Record<number, number>;
   scrollRef: RefObject<HTMLDivElement | null>;
+  topicName: string;
+  categoryName: string;
   onPrevious: () => void;
   onNext: () => void;
   onComplete: () => void;
@@ -29,11 +31,13 @@ interface Props {
   onLanguageChangeRequest: () => void;
 }
 
-export function LessonView({ lesson, sections, currentSectionIndex, selectedLanguage, selectedLevel, completedLevels, isLanguageTopic, isBookmarked, isGeneratingLesson, revealedHints, scrollRef, onPrevious, onNext, onComplete, onStepClick, onHintReveal, onOpenInEditor, onLevelChange, onBookmarkToggle, onPracticeClick, onLanguageChangeRequest }: Props) {
+export function LessonView({ lesson, sections, currentSectionIndex, selectedLanguage, selectedLevel, completedLevels, isLanguageTopic, isBookmarked, isGeneratingLesson, revealedHints, scrollRef, topicName, categoryName, onPrevious, onNext, onComplete, onStepClick, onHintReveal, onOpenInEditor, onLevelChange, onBookmarkToggle, onPracticeClick, onLanguageChangeRequest }: Props) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <LessonHero
         lesson={lesson}
+        topicName={topicName}
+        categoryName={categoryName}
         selectedLanguage={selectedLanguage}
         selectedLevel={selectedLevel}
         completedLevels={completedLevels}
@@ -48,11 +52,7 @@ export function LessonView({ lesson, sections, currentSectionIndex, selectedLang
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="px-5 py-5">
           {sections.length > 0 && (
-            <StepProgress
-              sections={sections}
-              currentIndex={currentSectionIndex}
-              onStepClick={onStepClick}
-            />
+            <StepProgress sections={sections} currentIndex={currentSectionIndex} onStepClick={onStepClick} />
           )}
           {sections.map((s, i) => (
             <SectionCard

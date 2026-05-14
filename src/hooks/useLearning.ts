@@ -155,13 +155,22 @@ export function useLearning() {
     if (!cat) return;
     const idx = cat.topics.findIndex(t => t.id === selectedTopic.id);
     for (let i = idx + 1; i < cat.topics.length; i++) {
-      if ((loadLevels(cat.topics[i].id)).length < 3) { handleTopicSelect(cat.topics[i]); return; }
+      if (loadLevels(cat.topics[i].id).length < 3) { handleTopicSelect(cat.topics[i]); return; }
     }
     const ci = categories.indexOf(cat);
     for (let c = ci + 1; c < categories.length; c++) {
       if (categories[c].topics.length > 0) { handleTopicSelect(categories[c].topics[0]); return; }
     }
   }, [selectedTopic, categories, handleTopicSelect]);
+
+  const handleBookmarkToggle = useCallback(() => {
+    setIsBookmarked(p => {
+      if (currentLesson) {
+        fetch(`${API_BASE}/progress/${currentLesson.id}/bookmark`, { method: 'POST', headers: { Authorization: `Bearer ${token()}` } }).catch(() => {});
+      }
+      return !p;
+    });
+  }, [currentLesson]);
 
   const sections = currentLesson ? parseSections(currentLesson) : [];
   const completedTopics = Object.entries(completedLevels).filter(([, l]) => l.length >= 3).map(([id]) => id);
@@ -174,11 +183,19 @@ export function useLearning() {
     revealedHints, searchQuery, isLanguageModalOpen, pendingTopic, toast, sections, scrollRef,
     handleTopicSelect, handleLanguageModalConfirm, handleLanguageModalCancel, handleCategoryToggle,
     handlePrevious, handleNext, handleComplete, handleNextLesson, handleLevelChange,
-    handleBookmarkToggle: () => setIsBookmarked(p => !p),
+    handleBookmarkToggle,
     handleHintReveal: (i: number) => setRevealedHints(p => ({ ...p, [i]: (p[i] ?? 0) + 1 })),
     handleOpenInEditor: (prompt: string) => navigate(`/practice?exercisePrompt=${encodeURIComponent(prompt)}&language=${encodeURIComponent(selectedLanguage)}`),
-    handleSearchChange: (q: string) => setSearchQuery(q),
-    handleStepClick: (i: number) => setCurrentSectionIndex(i),
+    handleSearchChange: (q: string) => {
+      setSearchQuery(q);
+      if (q.trim()) {
+        const matchingIds = categories
+          .filter(c => c.topics.some(t => t.name.toLowerCase().includes(q.toLowerCase())))
+          .map(c => c.id);
+        setOpenCategories(prev => [...new Set([...prev, ...matchingIds])]);
+      }
+    },
+    handleStepClick: (i: number) => { if (i <= currentSectionIndex) setCurrentSectionIndex(i); },
     setIsCompletionModalOpen,
   };
 }

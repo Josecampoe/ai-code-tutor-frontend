@@ -1,8 +1,16 @@
 import type { Lesson, Level } from '../../../types/learning.types';
 import { LevelTabs } from './LevelTabs';
 
+const LEVEL_PILL: Record<string, { bg: string; text: string }> = {
+  beginner:     { bg: 'bg-[#E1F5EE]', text: 'text-[#085041]' },
+  intermediate: { bg: 'bg-[#FAEEDA]', text: 'text-[#633806]' },
+  advanced:     { bg: 'bg-[#FEE2E2]', text: 'text-[#9B1C1C]' },
+};
+
 interface Props {
   lesson: Lesson;
+  topicName: string;
+  categoryName: string;
   selectedLanguage: string;
   selectedLevel: Level;
   completedLevels: Level[];
@@ -15,17 +23,19 @@ interface Props {
   onLanguageChangeRequest: () => void;
 }
 
-export function LessonHero({ lesson, selectedLanguage, selectedLevel, completedLevels, isLanguageTopic, isBookmarked, isGeneratingLesson, onLevelChange, onBookmarkToggle, onPracticeClick, onLanguageChangeRequest }: Props) {
+export function LessonHero({ lesson, topicName, categoryName, selectedLanguage, selectedLevel, completedLevels, isLanguageTopic, isBookmarked, isGeneratingLesson, onLevelChange, onBookmarkToggle, onPracticeClick, onLanguageChangeRequest }: Props) {
+  const levelPill = LEVEL_PILL[selectedLevel] ?? LEVEL_PILL.beginner;
+
   return (
     <div className="border-b border-[#E5E7EB]">
-      {/* Top bar */}
+      {/* Top bar — breadcrumb + actions */}
       <div className="h-12 bg-white flex items-center justify-between px-5 shrink-0">
         <div className="flex items-center gap-1.5 text-[12px]">
-          <span className="text-[#9CA3AF]">Learning</span>
+          <span className="text-[#9CA3AF]">{categoryName}</span>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
-          <span className="text-[#111827] truncate max-w-[200px]">{lesson.title}</span>
+          <span className="text-[#111827] font-medium truncate max-w-[200px]">{topicName}</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -42,18 +52,33 @@ export function LessonHero({ lesson, selectedLanguage, selectedLevel, completedL
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#534AB7] text-white rounded-lg text-[12px] font-medium hover:opacity-90 transition-opacity cursor-pointer"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            Practice
+            Practice in editor
           </button>
         </div>
       </div>
 
       {/* Hero content */}
       <div className="px-5 pt-4 pb-0">
-        <div className="flex items-center gap-2 flex-wrap mb-2">
+        {/* Meta row */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] bg-[#EEEDFE] text-[#3C3489] px-2.5 py-1 rounded-full font-medium">
+              {selectedLanguage}
+            </span>
+            <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium capitalize ${levelPill.bg} ${levelPill.text}`}>
+              {selectedLevel}
+            </span>
+            <span className="text-[11px] text-[#9CA3AF] bg-[#F9FAFB] px-2 py-1 rounded-full flex items-center gap-1">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              {lesson.estimatedMinutes} min
+            </span>
+          </div>
           {!isLanguageTopic && (
             <button
               onClick={onLanguageChangeRequest}
-              className="flex items-center gap-1.5 bg-[#EEEDFE] text-[#3C3489] rounded-full px-3 py-1 text-[11px] font-medium hover:opacity-80 cursor-pointer transition-opacity"
+              className="flex items-center gap-1.5 bg-[#EEEDFE] text-[#3C3489] rounded-full px-3 py-1 text-[11px] font-medium hover:opacity-80 cursor-pointer transition-opacity shrink-0"
             >
               Examples in: {selectedLanguage}
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,12 +87,6 @@ export function LessonHero({ lesson, selectedLanguage, selectedLevel, completedL
               </svg>
             </button>
           )}
-          <span className="text-[11px] text-[#9CA3AF] bg-[#F9FAFB] px-2 py-1 rounded-full flex items-center gap-1">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            {lesson.estimatedMinutes} min
-          </span>
         </div>
 
         <h1 className="text-[17px] font-medium text-[#111827]">{lesson.title}</h1>
@@ -83,11 +102,7 @@ export function LessonHero({ lesson, selectedLanguage, selectedLevel, completedL
           </div>
         )}
 
-        <LevelTabs
-          selectedLevel={selectedLevel}
-          completedLevels={completedLevels}
-          onLevelChange={onLevelChange}
-        />
+        <LevelTabs selectedLevel={selectedLevel} completedLevels={completedLevels} onLevelChange={onLevelChange} />
       </div>
     </div>
   );

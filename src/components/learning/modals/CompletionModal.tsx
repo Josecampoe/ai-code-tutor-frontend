@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react';
+import type { Level } from '../../../types/learning.types';
 
 interface Props {
   topicName: string;
+  level: Level;
   isOpen: boolean;
   onClose: () => void;
   onPractice: () => void;
   onNextLesson: () => void;
 }
 
-export function CompletionModal({ topicName, isOpen, onClose, onPractice, onNextLesson }: Props) {
+export function CompletionModal({ topicName, level, isOpen, onClose, onPractice, onNextLesson }: Props) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,8 +45,10 @@ export function CompletionModal({ topicName, isOpen, onClose, onPractice, onNext
           </svg>
         </div>
 
-        <h2 className="text-[15px] font-medium text-[#111827]">Topic completed!</h2>
-        <p className="text-[13px] text-[#4B5563] mt-1.5">You mastered {topicName}</p>
+        <h2 className="text-[15px] font-medium text-[#111827]">Level complete!</h2>
+        <p className="text-[13px] text-[#4B5563] mt-1.5 capitalize">
+          You completed {topicName} — {level}
+        </p>
 
         <div className="mt-3.5 mb-4 inline-block bg-[#EEEDFE] text-[#3C3489] text-[12px] font-medium px-3.5 py-1 rounded-full">
           +50 XP

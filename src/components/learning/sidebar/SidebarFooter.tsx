@@ -8,7 +8,7 @@ export function SidebarFooter({ completed, total }: Props) {
   return (
     <div className="p-3 border-t border-[#E5E7EB]">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] text-[#9CA3AF]">Progress</span>
+        <span className="text-[11px] text-[#9CA3AF]">Overall progress</span>
         <span className="text-[11px] text-[#534AB7] font-medium">{completed}/{total}</span>
       </div>
       <div className="h-1 bg-[#E5E7EB] rounded-full overflow-hidden">
