@@ -41,6 +41,7 @@ async function fetchLesson(topicId: string, language: string, level: string, tra
 export function LanguageLearningView({ topic, selectedLevel, onPracticeClick, completedLessons }: Props) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
+  const [sections, setSections] = useState<LessonSection[]>([]);
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [revealedHints, setRevealedHints] = useState<Record<number, number>>({});
@@ -66,15 +67,16 @@ export function LanguageLearningView({ topic, selectedLevel, onPracticeClick, co
     const trackLesson = TRACK_LESSONS[currentTrackIndex];
     const lesson = await fetchLesson(topic.id, languageName, selectedLevel, trackLesson.number);
     if (lesson) {
-      // Parse sections from contentJson if needed
-      let sections: LessonSection[] = [];
+      let parsed: LessonSection[] = [];
       try {
-        const parsed = JSON.parse(lesson.contentJson ?? '{}');
-        sections = parsed.sections ?? [];
-      } catch { sections = []; }
-      setCurrentLesson({ ...lesson, sections });
+        const json = JSON.parse(lesson.contentJson ?? '{}');
+        parsed = json.sections ?? [];
+      } catch { parsed = []; }
+      setCurrentLesson(lesson);
+      setSections(parsed);
     } else {
       setCurrentLesson(null);
+      setSections([]);
     }
     setIsLoading(false);
   }, [currentTrackIndex, topic.id, languageName, selectedLevel]);
@@ -102,7 +104,7 @@ export function LanguageLearningView({ topic, selectedLevel, onPracticeClick, co
 
   const handleNext = () => {
     if (currentLesson) {
-      setCurrentSectionIndex(prev => Math.min(currentLesson.sections.length - 1, prev + 1));
+      setCurrentSectionIndex(prev => Math.min(sections.length - 1, prev + 1));
       scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -208,11 +210,11 @@ export function LanguageLearningView({ topic, selectedLevel, onPracticeClick, co
           </div>
         )}
 
-        {!isLoading && currentLesson && currentLesson.sections.length > 0 && (
+        {!isLoading && currentLesson && sections.length > 0 && (
           <>
             <h3 className="text-[16px] font-medium text-[#111827] mb-1">{TRACK_LESSONS[currentTrackIndex].title}</h3>
             <p className="text-[12px] text-[#9CA3AF] mb-4">Lesson {currentTrackIndex + 1} of {TRACK_LESSONS.length}</p>
-            {currentLesson.sections.map((section, i) => (
+            {sections.map((section, i) => (
               <SectionCard
                 key={i}
                 section={section}
@@ -227,7 +229,7 @@ export function LanguageLearningView({ topic, selectedLevel, onPracticeClick, co
           </>
         )}
 
-        {!isLoading && (!currentLesson || currentLesson.sections.length === 0) && (
+        {!isLoading && (!currentLesson || sections.length === 0) && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" strokeWidth="1" className="mb-3">
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -239,10 +241,10 @@ export function LanguageLearningView({ topic, selectedLevel, onPracticeClick, co
       </div>
 
       {/* Bottom nav */}
-      {currentLesson && currentLesson.sections.length > 0 && !isLoading && (
+      {currentLesson && sections.length > 0 && !isLoading && (
         <BottomNav
           currentIndex={currentSectionIndex}
-          totalSections={currentLesson.sections.length}
+          totalSections={sections.length}
           onPrevious={handlePrevious}
           onNext={handleNext}
           onComplete={handleComplete}
