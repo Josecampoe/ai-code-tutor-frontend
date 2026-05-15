@@ -13,7 +13,7 @@ export interface Topic {
   categoryId: string;
   name: string;
   description: string;
-  level: Level;
+  language: string;
   orderIndex: number;
 }
 
@@ -31,6 +31,7 @@ export interface Lesson {
   topicId?: string;
   language: string;
   level: string;
+  lessonNumber: number;
   title: string;
   summary: string;
   estimatedMinutes: number;

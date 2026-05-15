@@ -1,48 +1,69 @@
 import { useNavigate } from 'react-router-dom';
 import { useLearning } from '../hooks/useLearning';
 import { LearningSidebar } from '../components/learning/sidebar/LearningSidebar';
+import { LevelSelectionScreen } from '../components/learning/LevelSelectionScreen';
 import { LessonView } from '../components/learning/lesson/LessonView';
-import { LanguageModal } from '../components/learning/modals/LanguageModal';
 import { CompletionModal } from '../components/learning/modals/CompletionModal';
+import type { Level } from '../types/learning.types';
+
+const LEVELS: Level[] = ['beginner', 'intermediate', 'advanced'];
 
 export function LearningPage() {
   const navigate = useNavigate();
   const {
-    categories, selectedTopic, currentLesson, currentSectionIndex,
-    selectedLanguage, selectedLevel, completedLevels, completedTopics,
-    inProgressTopics, openCategories, isLoadingLesson, isGeneratingLesson,
-    isCompletionModalOpen, isBookmarked, revealedHints, searchQuery,
-    isLanguageModalOpen, toast, sections, scrollRef,
-    handleTopicSelect, handleLanguageModalConfirm, handleLanguageModalCancel,
-    handleCategoryToggle, handlePrevious, handleNext, handleComplete,
-    handleNextLesson, handleLevelChange, handleBookmarkToggle,
-    handleHintReveal, handleOpenInEditor, handleSearchChange,
-    handleStepClick, setIsCompletionModalOpen, isLoadingTopics, topicsError, fetchTopics,
+    categories, selectedTopic, selectedLevel, currentLesson, currentLessonNumber,
+    currentSectionIndex, completedLevels, completedLessons,
+    isLoadingLesson, isGeneratingLesson, isCompletionModalOpen, isBookmarked,
+    revealedHints, toast, sections, scrollRef, isLoadingTopics, topicsError,
+    handleTopicSelect, handleLevelSelect, handleLessonComplete,
+    handlePrevious, handleNext, handleNextLevel, handleLevelChange,
+    handleBookmarkToggle, handleHintReveal, handleOpenInEditor,
+    handleStepClick, setIsCompletionModalOpen,
+    getCompletedCount, getTotalCompleted, fetchTopics,
   } = useLearning();
 
-  const isLanguageTopic = selectedTopic?.categoryId === 'LANGUAGE';
-  const selectedCategory = categories.find(c => c.id === selectedTopic?.categoryId);
-  const firstLanguageTopic = categories.find(c => c.id === 'LANGUAGE')?.topics[0];
+  const languages = categories.length > 0 ? categories[0].topics : [];
+
+  const isLastLevel = selectedLevel === 'advanced';
 
   return (
     <div className="h-screen flex overflow-hidden bg-white">
       <LearningSidebar
-        categories={categories}
+        languages={languages}
         selectedTopicId={selectedTopic?.id ?? null}
-        completedTopics={completedTopics}
-        inProgressTopics={inProgressTopics}
-        openCategories={openCategories}
-        searchQuery={searchQuery}
-        isLoadingTopics={isLoadingTopics}
-        topicsError={topicsError}
-        onTopicSelect={handleTopicSelect}
-        onCategoryToggle={handleCategoryToggle}
-        onSearchChange={handleSearchChange}
+        completedLevels={completedLevels}
+        getCompletedCount={getCompletedCount}
+        getTotalCompleted={getTotalCompleted}
+        isLoading={isLoadingTopics}
+        error={topicsError}
+        onSelect={handleTopicSelect}
         onRetry={fetchTopics}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {isLoadingLesson && !currentLesson && (
+        {!selectedTopic && !isLoadingTopics && (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" strokeWidth="1" className="mx-auto mb-4">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              <p className="text-[15px] font-medium text-[#9CA3AF] mb-1">Choose a language to start learning</p>
+              <p className="text-[13px] text-[#9CA3AF]">Select any language from the sidebar</p>
+            </div>
+          </div>
+        )}
+
+        {selectedTopic && !currentLesson && !isLoadingLesson && (
+          <LevelSelectionScreen
+            topic={selectedTopic}
+            completedLevels={completedLevels[selectedTopic.id] ?? []}
+            completedLessons={completedLessons}
+            isLoading={isLoadingLesson}
+            onLevelSelect={handleLevelSelect}
+          />
+        )}
+
+        {isLoadingLesson && !currentLesson && selectedTopic && (
           <div className="flex-1 p-5">
             {isGeneratingLesson && (
               <div className="flex items-center gap-2 bg-[#EEEDFE] rounded-lg px-[14px] py-[10px] mb-4">
@@ -59,64 +80,41 @@ export function LearningPage() {
           </div>
         )}
 
-        {!isLoadingLesson && !currentLesson && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#E5E7EB" strokeWidth="1" className="mx-auto mb-4">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-              </svg>
-              <p className="text-[15px] font-medium text-[#9CA3AF] mb-1">Choose a topic to start learning</p>
-              <p className="text-[13px] text-[#9CA3AF] mb-4">Select any topic from the sidebar</p>
-              {firstLanguageTopic && (
-                <button
-                  onClick={() => handleTopicSelect(firstLanguageTopic)}
-                  className="px-4 py-2 border border-[#E5E7EB] text-[#4B5563] rounded-lg text-[13px] hover:bg-[#F8F9FA] cursor-pointer transition-colors"
-                >
-                  Start with {firstLanguageTopic.name}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {currentLesson && (
           <LessonView
             lesson={currentLesson}
             sections={sections}
             currentSectionIndex={currentSectionIndex}
-            selectedLanguage={selectedLanguage}
+            selectedLanguage={selectedTopic?.language ?? ''}
             selectedLevel={selectedLevel}
             completedLevels={completedLevels[selectedTopic?.id ?? ''] ?? []}
-            isLanguageTopic={isLanguageTopic ?? false}
+            completedLessons={completedLessons[((selectedTopic?.id ?? '') + '_' + selectedLevel)] ?? []}
             isBookmarked={isBookmarked}
             isGeneratingLesson={isGeneratingLesson}
             revealedHints={revealedHints}
             scrollRef={scrollRef}
             topicName={selectedTopic?.name ?? ''}
-            categoryName={selectedCategory?.name ?? ''}
             onPrevious={handlePrevious}
             onNext={handleNext}
-            onComplete={handleComplete}
+            onComplete={handleLessonComplete}
             onStepClick={handleStepClick}
             onHintReveal={handleHintReveal}
             onOpenInEditor={handleOpenInEditor}
             onLevelChange={handleLevelChange}
             onBookmarkToggle={handleBookmarkToggle}
-            onPracticeClick={() => navigate(`/practice?topic=${encodeURIComponent(selectedTopic?.name ?? '')}&language=${encodeURIComponent(selectedLanguage)}`)}
-            onLanguageChangeRequest={() => { if (selectedTopic) handleTopicSelect(selectedTopic); }}
+            onPracticeClick={() => navigate(`/practice?language=${encodeURIComponent(selectedTopic?.language ?? '')}`)}
           />
         )}
       </div>
-
-      <LanguageModal isOpen={isLanguageModalOpen} onConfirm={handleLanguageModalConfirm} onClose={handleLanguageModalCancel} />
 
       <CompletionModal
         topicName={selectedTopic?.name ?? ''}
         level={selectedLevel}
         isOpen={isCompletionModalOpen}
+        isLastLevel={isLastLevel}
         onClose={() => setIsCompletionModalOpen(false)}
-        onPractice={() => navigate(`/practice?topic=${encodeURIComponent(selectedTopic?.name ?? '')}&language=${encodeURIComponent(selectedLanguage)}`)}
-        onNextLesson={handleNextLesson}
+        onPractice={() => navigate(`/practice?language=${encodeURIComponent(selectedTopic?.language ?? '')}`)}
+        onNextLevel={handleNextLevel}
       />
 
       {toast && (

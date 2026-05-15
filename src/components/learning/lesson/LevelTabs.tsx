@@ -5,10 +5,12 @@ const LEVELS: Level[] = ['beginner', 'intermediate', 'advanced'];
 interface Props {
   selectedLevel: Level;
   completedLevels: Level[];
+  completedLessons: number[];
+  currentLessonNumber: number;
   onLevelChange: (level: Level) => void;
 }
 
-export function LevelTabs({ selectedLevel, completedLevels, onLevelChange }: Props) {
+export function LevelTabs({ selectedLevel, completedLevels, completedLessons, currentLessonNumber, onLevelChange }: Props) {
   const currentIdx = LEVELS.findIndex(l => !completedLevels.includes(l));
   const effectiveCurrent = currentIdx === -1 ? LEVELS.length : currentIdx;
 
@@ -48,6 +50,14 @@ export function LevelTabs({ selectedLevel, completedLevels, onLevelChange }: Pro
               </svg>
             )}
             {level}
+            {isSelected && !isDone && (
+              <span className="text-[11px] text-[#9CA3AF] font-normal ml-1">
+                Lesson {currentLessonNumber} of 10
+              </span>
+            )}
+            {isDone && (
+              <span className="text-[11px] font-normal ml-1">Done</span>
+            )}
           </button>
         );
       })}

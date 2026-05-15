@@ -12,13 +12,12 @@ interface Props {
   selectedLanguage: string;
   selectedLevel: Level;
   completedLevels: Level[];
-  isLanguageTopic: boolean;
+  completedLessons: number[];
   isBookmarked: boolean;
   isGeneratingLesson: boolean;
   revealedHints: Record<number, number>;
   scrollRef: RefObject<HTMLDivElement | null>;
   topicName: string;
-  categoryName: string;
   onPrevious: () => void;
   onNext: () => void;
   onComplete: () => void;
@@ -28,26 +27,23 @@ interface Props {
   onLevelChange: (level: Level) => void;
   onBookmarkToggle: () => void;
   onPracticeClick: () => void;
-  onLanguageChangeRequest: () => void;
 }
 
-export function LessonView({ lesson, sections, currentSectionIndex, selectedLanguage, selectedLevel, completedLevels, isLanguageTopic, isBookmarked, isGeneratingLesson, revealedHints, scrollRef, topicName, categoryName, onPrevious, onNext, onComplete, onStepClick, onHintReveal, onOpenInEditor, onLevelChange, onBookmarkToggle, onPracticeClick, onLanguageChangeRequest }: Props) {
+export function LessonView({ lesson, sections, currentSectionIndex, selectedLanguage, selectedLevel, completedLevels, completedLessons, isBookmarked, isGeneratingLesson, revealedHints, scrollRef, topicName, onPrevious, onNext, onComplete, onStepClick, onHintReveal, onOpenInEditor, onLevelChange, onBookmarkToggle, onPracticeClick }: Props) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <LessonHero
         lesson={lesson}
         topicName={topicName}
-        categoryName={categoryName}
         selectedLanguage={selectedLanguage}
         selectedLevel={selectedLevel}
         completedLevels={completedLevels}
-        isLanguageTopic={isLanguageTopic}
+        completedLessons={completedLessons}
         isBookmarked={isBookmarked}
         isGeneratingLesson={isGeneratingLesson}
         onLevelChange={onLevelChange}
         onBookmarkToggle={onBookmarkToggle}
         onPracticeClick={onPracticeClick}
-        onLanguageChangeRequest={onLanguageChangeRequest}
       />
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="px-5 py-5">

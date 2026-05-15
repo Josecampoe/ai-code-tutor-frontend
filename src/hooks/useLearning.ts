@@ -2,42 +2,37 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Category, Topic, Lesson, Level } from '../types/learning.types';
 import { parseSections } from '../types/learning.types';
-import { getCachedLesson, setCachedLesson } from '../utils/lessonCache';
+import {
+  getCachedLesson, setCachedLesson,
+  getCompletedLessons, setCompletedLesson,
+  getCompletedLevels, setCompletedLevel,
+} from '../utils/lessonCache';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api';
 const LEVELS: Level[] = ['beginner', 'intermediate', 'advanced'];
+const LESSONS_PER_LEVEL = 10;
 
-const CATEGORY_NAMES: Record<string, string> = {
-  LANGUAGE: 'Languages', DATA_STRUCTURE: 'Data Structures',
-  DESIGN_PATTERN: 'Design Patterns', OOP: 'OOP', ALGORITHM: 'Algorithms',
+const LANGUAGE_MAP: Record<string, string> = {
+  Python: 'Python', Java: 'Java', JavaScript: 'JavaScript',
+  TypeScript: 'TypeScript', 'C++': 'C++', Kotlin: 'Kotlin',
 };
-
-function loadLevels(topicId: string): Level[] {
-  try { return JSON.parse(localStorage.getItem(`completed_levels_${topicId}`) ?? '[]'); } catch { return []; }
-}
-function saveLevels(topicId: string, levels: Level[]): void {
-  try { localStorage.setItem(`completed_levels_${topicId}`, JSON.stringify(levels)); } catch {}
-}
 
 export function useLearning() {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
-  const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  const [selectedLanguage, setSelectedLanguage] = useState('Java');
   const [selectedLevel, setSelectedLevel] = useState<Level>('beginner');
-  const [completedLevels, setCompletedLevels] = useState<Record<string, Level[]>>({});
-  const [openCategories, setOpenCategories] = useState<string[]>([]);
+  const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
+  const [currentLessonNumber, setCurrentLessonNumber] = useState(1);
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [completedLevels, setCompletedLevels] = useState<Record<string, string[]>>({});
+  const [completedLessons, setCompletedLessons] = useState<Record<string, number[]>>({});
   const [isLoadingLesson, setIsLoadingLesson] = useState(false);
   const [isGeneratingLesson, setIsGeneratingLesson] = useState(false);
   const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [revealedHints, setRevealedHints] = useState<Record<number, number>>({});
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
-  const [pendingTopic, setPendingTopic] = useState<Topic | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isLoadingTopics, setIsLoadingTopics] = useState(true);
   const [topicsError, setTopicsError] = useState(false);
@@ -49,17 +44,33 @@ export function useLearning() {
     setTopicsError(false);
     fetch(`${API_BASE}/topics`, { headers: { Authorization: `Bearer ${token()}` } })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then((data: Array<{ id: number; name: string; category: string; description: string; difficulty: string }>) => {
+      .then((data: Array<{ id: number; name: string; category: string; description: string }>) => {
         const map = new Map<string, Category>();
         data.forEach((t, i) => {
-          if (!map.has(t.category)) map.set(t.category, { id: t.category, name: CATEGORY_NAMES[t.category] ?? t.category, icon: '', topicCount: 0, topics: [] });
+          if (!map.has(t.category)) {
+            map.set(t.category, { id: t.category, name: 'Languages', icon: '', topicCount: 0, topics: [] });
+          }
           const cat = map.get(t.category)!;
-          cat.topics.push({ id: String(t.id), categoryId: t.category, name: t.name, description: t.description, level: 'beginner', orderIndex: i });
+          const lang = LANGUAGE_MAP[t.name] ?? t.name;
+          cat.topics.push({
+            id: String(t.id), categoryId: t.category, name: t.name,
+            description: t.description, language: lang, orderIndex: i,
+          });
           cat.topicCount = cat.topics.length;
         });
         const cats = Array.from(map.values());
         setCategories(cats);
-        if (cats.length > 0) setOpenCategories([cats[0].id]);
+        const completed: Record<string, string[]> = {};
+        const lessons: Record<string, number[]> = {};
+        cats.forEach(c => c.topics.forEach(t => {
+          completed[t.id] = getCompletedLevels(t.id);
+          lessons[t.id] = [];
+          LEVELS.forEach(l => {
+            lessons[t.id + '_' + l] = getCompletedLessons(t.id, l);
+          });
+        }));
+        setCompletedLevels(completed);
+        setCompletedLessons(lessons);
         setTopicsError(false);
       })
       .catch(() => setTopicsError(true))
@@ -68,52 +79,99 @@ export function useLearning() {
 
   useEffect(() => { fetchTopics(); }, [fetchTopics]);
 
-  const loadLesson = useCallback(async (topic: Topic, lang: string, level: Level) => {
-    const cached = getCachedLesson(topic.id, lang, level);
-    if (cached) { setCurrentLesson(cached); setCurrentSectionIndex(0); setRevealedHints({}); setIsBookmarked(false); return; }
+  const loadLesson = useCallback(async (topic: Topic, level: Level, lessonNumber: number) => {
+    const cached = getCachedLesson(topic.id, level, lessonNumber);
+    if (cached) {
+      setCurrentLesson(cached);
+      setCurrentLessonNumber(lessonNumber);
+      setCurrentSectionIndex(0);
+      setRevealedHints({});
+      setIsBookmarked(false);
+      return;
+    }
     setIsLoadingLesson(true);
     const t = setTimeout(() => setIsGeneratingLesson(true), 1500);
     try {
-      const res = await fetch(`${API_BASE}/lessons/topic/${topic.id}?language=${encodeURIComponent(lang)}&level=${encodeURIComponent(level)}`, { headers: { Authorization: `Bearer ${token()}` } });
+      const lang = topic.language;
+      const res = await fetch(
+        `${API_BASE}/lessons/topic/${topic.id}?language=${encodeURIComponent(lang)}&level=${encodeURIComponent(level)}&lessonNumber=${lessonNumber}`,
+        { headers: { Authorization: `Bearer ${token()}` } }
+      );
       if (!res.ok) throw new Error();
       const lesson: Lesson = await res.json();
-      setCachedLesson(topic.id, lang, level, lesson);
-      setCurrentLesson(lesson); setCurrentSectionIndex(0); setRevealedHints({}); setIsBookmarked(false);
-    } catch { setCurrentLesson(null); }
-    finally { clearTimeout(t); setIsLoadingLesson(false); setIsGeneratingLesson(false); }
+      setCachedLesson(topic.id, level, lessonNumber, lesson);
+      setCurrentLesson(lesson);
+      setCurrentLessonNumber(lessonNumber);
+      setCurrentSectionIndex(0);
+      setRevealedHints({});
+      setIsBookmarked(false);
+    } catch {
+      setCurrentLesson(null);
+    } finally {
+      clearTimeout(t);
+      setIsLoadingLesson(false);
+      setIsGeneratingLesson(false);
+    }
   }, []);
-
-  const selectTopic = useCallback((topic: Topic, lang: string) => {
-    const done = loadLevels(topic.id);
-    setCompletedLevels(prev => ({ ...prev, [topic.id]: done }));
-    const level = LEVELS.find(l => !done.includes(l)) ?? 'advanced';
-    setSelectedLevel(level);
-    setSelectedTopic(topic);
-    loadLesson(topic, lang, level);
-  }, [loadLesson]);
 
   const handleTopicSelect = useCallback((topic: Topic) => {
-    if (topic.categoryId === 'LANGUAGE') {
-      const lang = topic.name.replace(/\s+(Basics|Advanced|Intermediate)$/i, '').trim();
-      setSelectedLanguage(lang);
-      selectTopic(topic, lang);
+    const done = getCompletedLevels(topic.id);
+    setCompletedLevels(prev => ({ ...prev, [topic.id]: done }));
+    setSelectedTopic(topic);
+    setCurrentLesson(null);
+
+    const nextLevel = LEVELS.find(l => !done.includes(l)) ?? 'advanced';
+    setSelectedLevel(nextLevel);
+
+    const doneLessons = getCompletedLessons(topic.id, nextLevel);
+    const nextLesson = doneLessons.length >= LESSONS_PER_LEVEL ? LESSONS_PER_LEVEL : doneLessons.length + 1;
+
+    if (doneLessons.length >= LESSONS_PER_LEVEL && done.includes(nextLevel)) {
+      const idx = LEVELS.indexOf(nextLevel);
+      if (idx < LEVELS.length - 1) {
+        const nextUnlocked = LEVELS[idx + 1];
+        setSelectedLevel(nextUnlocked);
+        loadLesson(topic, nextUnlocked, 1);
+      }
     } else {
-      setPendingTopic(topic);
-      setIsLanguageModalOpen(true);
+      loadLesson(topic, nextLevel, nextLesson);
     }
-  }, [selectTopic]);
+  }, [loadLesson]);
 
-  const handleLanguageModalConfirm = useCallback((lang: string) => {
-    setSelectedLanguage(lang);
-    setIsLanguageModalOpen(false);
-    if (pendingTopic) { selectTopic(pendingTopic, lang); setPendingTopic(null); }
-  }, [pendingTopic, selectTopic]);
+  const handleLevelSelect = useCallback((level: Level) => {
+    if (!selectedTopic) return;
+    setSelectedLevel(level);
+    setCurrentLesson(null);
+    const doneLessons = getCompletedLessons(selectedTopic.id, level);
+    const nextLesson = doneLessons.length >= LESSONS_PER_LEVEL ? LESSONS_PER_LEVEL : doneLessons.length + 1;
+    loadLesson(selectedTopic, level, nextLesson);
+  }, [selectedTopic, loadLesson]);
 
-  const handleLanguageModalCancel = useCallback(() => { setIsLanguageModalOpen(false); setPendingTopic(null); }, []);
+  const handleLessonComplete = useCallback(() => {
+    if (!currentLesson || !selectedTopic) return;
+    const level = currentLesson.level as Level;
+    const lessonNum = currentLesson.lessonNumber;
 
-  const handleCategoryToggle = useCallback((id: string) => {
-    setOpenCategories(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  }, []);
+    setCompletedLesson(selectedTopic.id, level, lessonNum);
+    setCompletedLessons(prev => {
+      const key = selectedTopic.id + '_' + level;
+      const current = [...(prev[key] ?? [])];
+      if (!current.includes(lessonNum)) current.push(lessonNum);
+      return { ...prev, [key]: current };
+    });
+
+    if (lessonNum < LESSONS_PER_LEVEL) {
+      loadLesson(selectedTopic, level, lessonNum + 1);
+    } else {
+      setCompletedLevel(selectedTopic.id, level);
+      setCompletedLevels(prev => {
+        const current = [...(prev[selectedTopic.id] ?? [])];
+        if (!current.includes(level)) current.push(level);
+        return { ...prev, [selectedTopic.id]: current };
+      });
+      setIsCompletionModalOpen(true);
+    }
+  }, [currentLesson, selectedTopic, loadLesson]);
 
   const handlePrevious = useCallback(() => {
     setCurrentSectionIndex(p => Math.max(0, p - 1));
@@ -127,84 +185,51 @@ export function useLearning() {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentLesson]);
 
-  const handleComplete = useCallback(async () => {
-    if (!currentLesson || !selectedTopic) return;
-    try { await fetch(`${API_BASE}/progress/${currentLesson.id}/complete`, { method: 'POST', headers: { Authorization: `Bearer ${token()}` } }); } catch {}
-    const prev = completedLevels[selectedTopic.id] ?? [];
-    const next = prev.includes(selectedLevel) ? prev : [...prev, selectedLevel];
-    saveLevels(selectedTopic.id, next);
-    setCompletedLevels(p => ({ ...p, [selectedTopic.id]: next }));
+  const handleNextLevel = useCallback(() => {
+    setIsCompletionModalOpen(false);
+    if (!selectedTopic) return;
     const idx = LEVELS.indexOf(selectedLevel);
     if (idx < LEVELS.length - 1) {
       const nextLevel = LEVELS[idx + 1];
-      setToast(`Level complete! Now: ${nextLevel.charAt(0).toUpperCase() + nextLevel.slice(1)}`);
-      setTimeout(() => setToast(null), 3000);
       setSelectedLevel(nextLevel);
-      loadLesson(selectedTopic, selectedLanguage, nextLevel);
-    } else {
-      setIsCompletionModalOpen(true);
+      loadLesson(selectedTopic, nextLevel, 1);
     }
-  }, [currentLesson, selectedTopic, selectedLevel, selectedLanguage, completedLevels, loadLesson]);
-
-  const handleLevelChange = useCallback((level: Level) => {
-    if (!selectedTopic) return;
-    const done = completedLevels[selectedTopic.id] ?? [];
-    const cur = LEVELS.findIndex(l => !done.includes(l));
-    const effective = cur === -1 ? LEVELS.length - 1 : cur;
-    if (LEVELS.indexOf(level) > effective) return;
-    setSelectedLevel(level);
-    loadLesson(selectedTopic, selectedLanguage, level);
-  }, [selectedTopic, selectedLanguage, completedLevels, loadLesson]);
-
-  const handleNextLesson = useCallback(() => {
-    setIsCompletionModalOpen(false);
-    if (!selectedTopic) return;
-    const cat = categories.find(c => c.topics.some(t => t.id === selectedTopic.id));
-    if (!cat) return;
-    const idx = cat.topics.findIndex(t => t.id === selectedTopic.id);
-    for (let i = idx + 1; i < cat.topics.length; i++) {
-      if (loadLevels(cat.topics[i].id).length < 3) { handleTopicSelect(cat.topics[i]); return; }
-    }
-    const ci = categories.indexOf(cat);
-    for (let c = ci + 1; c < categories.length; c++) {
-      if (categories[c].topics.length > 0) { handleTopicSelect(categories[c].topics[0]); return; }
-    }
-  }, [selectedTopic, categories, handleTopicSelect]);
+  }, [selectedTopic, selectedLevel, loadLesson]);
 
   const handleBookmarkToggle = useCallback(() => {
-    setIsBookmarked(p => {
-      if (currentLesson) {
-        fetch(`${API_BASE}/progress/${currentLesson.id}/bookmark`, { method: 'POST', headers: { Authorization: `Bearer ${token()}` } }).catch(() => {});
-      }
-      return !p;
-    });
-  }, [currentLesson]);
+    setIsBookmarked(p => !p);
+  }, []);
+
+  const handleLevelChange = useCallback((level: Level) => {
+    handleLevelSelect(level);
+  }, [handleLevelSelect]);
 
   const sections = currentLesson ? parseSections(currentLesson) : [];
-  const completedTopics = Object.entries(completedLevels).filter(([, l]) => l.length >= 3).map(([id]) => id);
-  const inProgressTopics = Object.entries(completedLevels).filter(([, l]) => l.length > 0 && l.length < 3).map(([id]) => id);
+  const completedTopicsArr = Object.entries(completedLevels).filter(([, l]) => l.length >= 3).map(([id]) => id);
+
+  function getCompletedCount(topicId: string, level: string): number {
+    return (completedLessons[topicId + '_' + level] ?? []).length;
+  }
+
+  function getTotalCompleted(topicId: string): number {
+    return LEVELS.reduce((sum, l) => sum + getCompletedCount(topicId, l), 0);
+  }
 
   return {
-    categories, selectedTopic, currentLesson, currentSectionIndex, selectedLanguage,
-    selectedLevel, completedLevels, completedTopics, inProgressTopics, openCategories,
+    categories, selectedTopic, selectedLevel, currentLesson, currentLessonNumber,
+    currentSectionIndex, completedLevels, completedLessons, completedTopicsArr,
     isLoadingLesson, isGeneratingLesson, isCompletionModalOpen, isBookmarked,
-    revealedHints, searchQuery, isLanguageModalOpen, pendingTopic, toast, sections, scrollRef,
-    isLoadingTopics, topicsError, fetchTopics,
-    handleTopicSelect, handleLanguageModalConfirm, handleLanguageModalCancel, handleCategoryToggle,
-    handlePrevious, handleNext, handleComplete, handleNextLesson, handleLevelChange,
+    revealedHints, toast, sections, scrollRef, isLoadingTopics, topicsError,
+    failedLevels: completedLevels,
+    handleTopicSelect, handleLevelSelect, handleLessonComplete,
+    handlePrevious, handleNext, handleNextLevel, handleLevelChange,
     handleBookmarkToggle,
     handleHintReveal: (i: number) => setRevealedHints(p => ({ ...p, [i]: (p[i] ?? 0) + 1 })),
-    handleOpenInEditor: (prompt: string) => navigate(`/practice?exercisePrompt=${encodeURIComponent(prompt)}&language=${encodeURIComponent(selectedLanguage)}`),
-    handleSearchChange: (q: string) => {
-      setSearchQuery(q);
-      if (q.trim()) {
-        const matchingIds = categories
-          .filter(c => c.topics.some(t => t.name.toLowerCase().includes(q.toLowerCase())))
-          .map(c => c.id);
-        setOpenCategories(prev => [...new Set([...prev, ...matchingIds])]);
-      }
-    },
+    handleOpenInEditor: (prompt: string) => navigate(`/practice?exercisePrompt=${encodeURIComponent(prompt)}&language=${encodeURIComponent(selectedTopic?.language ?? '')}`),
     handleStepClick: (i: number) => { if (i <= currentSectionIndex) setCurrentSectionIndex(i); },
     setIsCompletionModalOpen,
+    getCompletedCount,
+    getTotalCompleted,
+    fetchTopics,
   };
 }
