@@ -5,8 +5,6 @@ const LANGUAGES = [
   { name: 'Python',     color: '#3B82F6' },
   { name: 'JavaScript', color: '#F59E0B' },
   { name: 'TypeScript', color: '#0F6E56' },
-  { name: 'C++',        color: '#854F0B' },
-  { name: 'Kotlin',     color: '#993556' },
 ];
 
 interface Props {
